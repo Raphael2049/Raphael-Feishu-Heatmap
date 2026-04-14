@@ -41,7 +41,16 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
   useEffect(() => {
     if (!chartRef.current) return;
     chartInstance.current = echarts.init(chartRef.current);
-    return () => chartInstance.current?.dispose();
+
+    const resizeObserver = new ResizeObserver(() => {
+      chartInstance.current?.resize();
+    });
+    resizeObserver.observe(chartRef.current);
+
+    return () => {
+      chartInstance.current?.dispose();
+      resizeObserver.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -49,7 +58,12 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
     chartInstance.current.setOption(options, { notMerge: true });
   }, [options]);
 
-  return <div ref={chartRef} style={{ width: '100%', height: '100%', minHeight: '400px' }} />;
+  return (
+    <div
+      ref={chartRef}
+      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+    />
+  );
 }
 
 function ConfigPanel({
@@ -213,11 +227,49 @@ export default function App() {
       });
 
       setChartOptions({
-        grid: { left: '10%', right: '10%', bottom: '10%', top: '10%' },
-        xAxis: { type: 'category', data: xCats, splitArea: { show: true } },
-        yAxis: { type: 'category', data: yCats, splitArea: { show: true } },
-        visualMap: { min: 0, max: Math.max(...data.map((d) => d[2]), 1), calculable: true, inRange: { color: config.colorRange } },
-        series: [{ type: 'heatmap', data, label: { show: true } }],
+        grid: {
+          left: '15%',
+          right: '5%',
+          bottom: '20%',
+          top: '10%',
+          containLabel: false,
+        },
+        xAxis: {
+          type: 'category',
+          data: xCats,
+          splitArea: { show: true },
+          axisLabel: {
+            rotate: 30,
+            fontSize: 11,
+            interval: 0,
+            overflow: 'break',
+          },
+        },
+        yAxis: {
+          type: 'category',
+          data: yCats,
+          splitArea: { show: true },
+          axisLabel: {
+            fontSize: 11,
+          },
+        },
+        visualMap: {
+          min: 0,
+          max: Math.max(...data.map((d) => d[2]), 1),
+          calculable: true,
+          inRange: { color: config.colorRange },
+        },
+        series: [
+          {
+            type: 'heatmap',
+            data,
+            label: { show: true, fontSize: 10 },
+            itemStyle: {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.3)',
+            },
+          },
+        ],
         backgroundColor: bgColor,
       });
     } catch (e) {
