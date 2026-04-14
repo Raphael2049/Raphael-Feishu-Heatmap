@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from './hooks';
 import './App.scss';
 
+// ---------- 类型定义 ----------
 interface IHeatmapConfig {
   tableId: string;
   xFieldId: string;
@@ -24,6 +25,7 @@ const defaultConfig: IHeatmapConfig = {
   colorRange: ['#313695', '#a50026'],
 };
 
+// ---------- 简易表单 Item ----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
   if (!children && !label) return null;
   return (
@@ -34,6 +36,7 @@ const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label,
   );
 };
 
+// ---------- 热力图图表组件 ----------
 function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts>();
@@ -42,6 +45,7 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
     if (!chartRef.current) return;
     chartInstance.current = echarts.init(chartRef.current);
 
+    // 监听容器大小变化，自动调整图表
     const resizeObserver = new ResizeObserver(() => {
       chartInstance.current?.resize();
     });
@@ -61,11 +65,16 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
   return (
     <div
       ref={chartRef}
-      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: '400px', // 保证最小高度
+      }}
     />
   );
 }
 
+// ---------- 配置面板 ----------
 function ConfigPanel({
   config,
   setConfig,
@@ -112,7 +121,9 @@ function ConfigPanel({
           <Select
             value={config.valueFieldId}
             onChange={(v) => setConfig({ ...config, valueFieldId: v as string })}
-            optionList={fieldList.filter((f) => f.type === 2).map((f) => ({ label: f.name, value: f.id }))}
+            optionList={fieldList
+              .filter((f) => f.type === 2) // 数字类型
+              .map((f) => ({ label: f.name, value: f.id }))}
             style={{ width: '100%' }}
           />
         </Item>
@@ -130,8 +141,16 @@ function ConfigPanel({
         </Item>
         <Item label="颜色范围">
           <div style={{ display: 'flex', gap: 8 }}>
-            <input type="color" value={config.colorRange[0]} onChange={(e) => setConfig({ ...config, colorRange: [e.target.value, config.colorRange[1]] })} />
-            <input type="color" value={config.colorRange[1]} onChange={(e) => setConfig({ ...config, colorRange: [config.colorRange[0], e.target.value] })} />
+            <input
+              type="color"
+              value={config.colorRange[0]}
+              onChange={(e) => setConfig({ ...config, colorRange: [e.target.value, config.colorRange[1]] })}
+            />
+            <input
+              type="color"
+              value={config.colorRange[1]}
+              onChange={(e) => setConfig({ ...config, colorRange: [config.colorRange[0], e.target.value] })}
+            />
           </div>
         </Item>
       </div>
@@ -140,6 +159,7 @@ function ConfigPanel({
   );
 }
 
+// ---------- 主应用 ----------
 export default function App() {
   const { bgColor } = useTheme();
   const [config, setConfig] = useState<IHeatmapConfig>(defaultConfig);
@@ -152,38 +172,53 @@ export default function App() {
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
   const isView = dashboardState === DashboardState.View || dashboardState === DashboardState.FullScreen;
 
+  // 加载配置
   useEffect(() => {
     if (dashboardState === DashboardState.Create) return;
     dashboard.getConfig().then((res) => {
-      if (res.customConfig) setConfig({ ...defaultConfig, ...res.customConfig });
+      if (res.customConfig) {
+        setConfig({ ...defaultConfig, ...res.customConfig });
+      }
     }).catch(console.error);
   }, [dashboardState]);
 
+  // 监听配置变更
   useEffect(() => {
     const off = dashboard.onConfigChange((res) => {
-      if (res.data.customConfig) setConfig({ ...defaultConfig, ...res.data.customConfig });
+      if (res.data.customConfig) {
+        setConfig({ ...defaultConfig, ...res.data.customConfig });
+      }
     });
     return () => off();
   }, []);
 
+  // 获取表格列表
   useEffect(() => {
     bitable.base.getTableMetaList().then(setTableList).catch(console.error);
   }, []);
 
+  // 获取字段列表
   useEffect(() => {
     if (!config.tableId) return;
-    bitable.base.getTableById(config.tableId).then((t) => t.getFieldMetaList()).then(setFieldList).catch(console.error);
+    bitable.base.getTableById(config.tableId)
+      .then((table) => table.getFieldMetaList())
+      .then(setFieldList)
+      .catch(console.error);
   }, [config.tableId]);
 
+  // 从单元格提取字符串值
   const getCellString = (cell: any): string => {
     if (cell == null) return '';
     if (typeof cell === 'string') return cell;
     if (typeof cell === 'number') return String(cell);
-    if (Array.isArray(cell)) return cell.map((v) => (typeof v === 'object' && v.text ? v.text : String(v))).join(',');
+    if (Array.isArray(cell)) {
+      return cell.map((v) => (typeof v === 'object' && v.text ? v.text : String(v))).join(',');
+    }
     if (typeof cell === 'object' && cell.text) return cell.text;
     return String(cell);
   };
 
+  // 获取并聚合数据
   const fetchData = useCallback(async () => {
     if (!config.tableId || !config.xFieldId || !config.yFieldId || !config.valueFieldId) return;
     setLoading(true);
@@ -221,7 +256,9 @@ export default function App() {
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
           let v = aggMap[x]?.[y] || 0;
-          if (config.aggregate === 'average') v = v / (cntMap[x]?.[y] || 1);
+          if (config.aggregate === 'average') {
+            v = v / (cntMap[x]?.[y] || 1);
+          }
           data.push([xi, yi, v]);
         });
       });
@@ -280,20 +317,37 @@ export default function App() {
     }
   }, [config, bgColor]);
 
+  // View 状态下拉取数据
   useEffect(() => {
     if (isView) fetchData();
   }, [isView, fetchData]);
 
-  const onSave = () => dashboard.saveConfig({ customConfig: config as any, dataConditions: [] });
+  // 保存配置
+    const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
 
+  // 如果当前是 Create 状态，直接显示配置面板
   if (dashboardState === DashboardState.Create) {
-    return <ConfigPanel config={config} setConfig={setConfig} tableList={tableList} fieldList={fieldList} onSave={onSave} />;
+    return (
+      <ConfigPanel
+        config={config}
+        setConfig={setConfig}
+        tableList={tableList}
+        fieldList={fieldList}
+        onSave={onSave}
+      />
+    );
   }
 
   return (
     <main style={{ backgroundColor: bgColor }} className={isConfig ? 'main-config' : 'main'}>
       {isConfig ? (
-        <ConfigPanel config={config} setConfig={setConfig} tableList={tableList} fieldList={fieldList} onSave={onSave} />
+        <ConfigPanel
+          config={config}
+          setConfig={setConfig}
+          tableList={tableList}
+          fieldList={fieldList}
+          onSave={onSave}
+        />
       ) : (
         <div className="content" style={{ padding: 20 }}>
           <Spin spinning={loading}>
