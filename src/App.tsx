@@ -198,7 +198,11 @@ export default function App() {
       }
 
       const xCats = Object.keys(aggMap).sort();
-      const yCats = Object.keys(aggMap[xCats[0]] || {}).sort();
+      const ySet = new Set<string>();
+      xCats.forEach(x => {
+        Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y));
+      });
+      const yCats = Array.from(ySet).sort();
       const data: [number, number, number][] = [];
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
