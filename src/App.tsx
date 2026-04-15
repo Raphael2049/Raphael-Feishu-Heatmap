@@ -23,14 +23,28 @@ const defaultConfig: IHeatmapConfig = {
   valueFieldId: '',
   aggregate: 'count',
   colorRange: ['#313695', '#a50026'],
-  axisLabelFontSize: 12,
+  axisLabelFontSize: 13, // 默认13px，更明显
 };
 
+// Item 组件：支持主题自适应标签颜色
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
+  const [labelColor, setLabelColor] = useState('#1F2329');
+
+  useEffect(() => {
+    const updateColor = () => {
+      const theme = document.body.getAttribute('theme-mode');
+      setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
+    };
+    updateColor();
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
+    return () => observer.disconnect();
+  }, []);
+
   if (!children && !label) return null;
   return (
     <div className="form-item">
-      {label ? <div className="label">{label}</div> : null}
+      {label ? <div className="label" style={{ color: labelColor }}>{label}</div> : null}
       {children ? <div>{children}</div> : null}
     </div>
   );
@@ -63,6 +77,7 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
         width: '100%',
         height: `${height}px`,
         minHeight: '400px',
+        backgroundColor: '#B2C4D0', // 容器背景色作为后备
       }}
     />
   );
@@ -176,12 +191,6 @@ export default function App() {
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
   const isView = dashboardState === DashboardState.View || dashboardState === DashboardState.FullScreen;
 
-  // 根据主题获取热力图背景色
-  const getHeatmapBgColor = () => {
-    const theme = document.body.getAttribute('theme-mode');
-    return theme === 'dark' ? '#1A1A1A' : '#B2C4D0';
-  };
-
   useEffect(() => {
     if (dashboardState === DashboardState.Create) return;
     dashboard.getConfig().then((res) => {
@@ -272,6 +281,9 @@ export default function App() {
       const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
       setChartHeight(Math.max(calculatedHeight, 600));
 
+      // 验证日志
+      console.log('即将设置背景色为 #B2C4D0，坐标轴字体大小为：', config.axisLabelFontSize);
+
       setChartOptions({
         grid: {
           left: '15%',
@@ -316,7 +328,7 @@ export default function App() {
             },
           },
         ],
-        backgroundColor: getHeatmapBgColor(),
+        backgroundColor: '#B2C4D0', // 固定背景色
       });
     } catch (e) {
       console.error(e);
