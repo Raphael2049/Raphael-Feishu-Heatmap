@@ -44,27 +44,40 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
   useEffect(() => {
     if (!chartRef.current) return;
 
-    // ----- 新增：强制设置所有父级容器高度为 100% -----
-    const updateParentHeights = () => {
-      let element = chartRef.current?.parentElement;
-      while (element && element !== document.body) {
-        element.style.height = '100%';
-        element = element.parentElement;
+    // 强制设置从图表容器到 body 的所有父元素高度为 100%
+    const forceParentHeights = () => {
+      let el = chartRef.current?.parentElement;
+      while (el && el !== document.body) {
+        el.style.height = '100%';
+        el.style.minHeight = '0';
+        el.style.flex = '1';
+        el = el.parentElement;
       }
+      // 同时确保 body 和 html 也是 100%
+      document.body.style.height = '100%';
+      document.documentElement.style.height = '100%';
     };
-    updateParentHeights();
-    window.addEventListener('resize', updateParentHeights);
-    // ------------------------------------------------
 
+    forceParentHeights();
+
+    // 初始化图表
     chartInstance.current = echarts.init(chartRef.current);
 
+    // 使用 ResizeObserver 监听容器大小变化
     const resizeObserver = new ResizeObserver(() => {
       chartInstance.current?.resize();
     });
     resizeObserver.observe(chartRef.current);
 
+    // 同时监听 window 的 resize，作为兜底
+    const handleWindowResize = () => {
+      chartInstance.current?.resize();
+      forceParentHeights();
+    };
+    window.addEventListener('resize', handleWindowResize);
+
     return () => {
-      window.removeEventListener('resize', updateParentHeights);
+      window.removeEventListener('resize', handleWindowResize);
       resizeObserver.disconnect();
       chartInstance.current?.dispose();
     };

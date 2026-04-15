@@ -283,35 +283,32 @@ body {
     background: transparent !important;
 }
 
-// 确保根容器占满全高
 html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
+  height: 100% !important;
+  min-height: 100% !important;
 }
 
 .main {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0;        // 防止flex子项溢出
+  min-height: 0;
 }
 
 .main-config {
   display: flex;
-  flex-direction: row;  // 配置模式下左右布局
+  flex-direction: row;
   height: 100%;
   min-height: 0;
 }
 
 .content {
-  flex: 1;              // 撑满剩余空间
-  min-height: 0;        // 关键：允许内容缩小
+  flex: 1;
+  min-height: 0;
   padding: 20px;
   box-sizing: border-box;
 }
 
-// 热力图容器本身也需要高度传递
 .content > div {
   height: 100%;
 }
