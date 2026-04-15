@@ -14,6 +14,8 @@ interface IHeatmapConfig {
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
   axisLabelFontSize: number;
+  labelFontSize: number;
+  valueFormat: 'raw' | 'percent';
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -22,11 +24,12 @@ const defaultConfig: IHeatmapConfig = {
   yFieldId: '',
   valueFieldId: '',
   aggregate: 'count',
-  colorRange: ['#313695', '#a50026'],
-  axisLabelFontSize: 13, // 默认13px，更明显
+  colorRange: ['#ffffff', '#313695'],
+  axisLabelFontSize: 13,
+  labelFontSize: 10,
+  valueFormat: 'raw',
 };
 
-// Item 组件：支持主题自适应标签颜色
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
   const [labelColor, setLabelColor] = useState('#1F2329');
 
@@ -77,7 +80,7 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
         width: '100%',
         height: `${height}px`,
         minHeight: '400px',
-        backgroundColor: '#B2C4D0', // 容器背景色作为后备
+        backgroundColor: '#B2C4D0',
       }}
     />
   );
@@ -99,6 +102,11 @@ function ConfigPanel({
   const { t } = useTranslation();
 
   const fontSizeOptions = [10, 11, 12, 13, 14, 16].map(size => ({
+    label: `${size}px`,
+    value: size,
+  }));
+
+  const labelFontSizeOptions = [8, 9, 10, 11, 12, 14, 16].map(size => ({
     label: `${size}px`,
     value: size,
   }));
@@ -169,6 +177,25 @@ function ConfigPanel({
             value={config.axisLabelFontSize}
             onChange={(v) => setConfig({ ...config, axisLabelFontSize: v as number })}
             optionList={fontSizeOptions}
+            style={{ width: '100%' }}
+          />
+        </Item>
+        <Item label="标签字体大小">
+          <Select
+            value={config.labelFontSize}
+            onChange={(v) => setConfig({ ...config, labelFontSize: v as number })}
+            optionList={labelFontSizeOptions}
+            style={{ width: '100%' }}
+          />
+        </Item>
+        <Item label="数值显示格式">
+          <Select
+            value={config.valueFormat}
+            onChange={(v) => setConfig({ ...config, valueFormat: v as 'raw' | 'percent' })}
+            optionList={[
+              { label: '原始值', value: 'raw' },
+              { label: '百分比', value: 'percent' },
+            ]}
             style={{ width: '100%' }}
           />
         </Item>
@@ -281,8 +308,8 @@ export default function App() {
       const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
       setChartHeight(Math.max(calculatedHeight, 600));
 
-      // 验证日志
-      console.log('即将设置背景色为 #B2C4D0，坐标轴字体大小为：', config.axisLabelFontSize);
+      // 计算总和用于百分比（但不改变颜色映射数据）
+      const totalSum = data.reduce((sum, d) => sum + d[2], 0);
 
       setChartOptions({
         grid: {
@@ -321,14 +348,25 @@ export default function App() {
           {
             type: 'heatmap',
             data,
-            label: { show: true, fontSize: 10 },
+            label: {
+              show: true,
+              fontSize: config.labelFontSize,
+              formatter: (params: any) => {
+                const value = params.data[2];
+                if (config.valueFormat === 'percent') {
+                  if (totalSum === 0) return '0.00%';
+                  return ((value / totalSum) * 100).toFixed(2) + '%';
+                }
+                return value.toFixed(2);
+              },
+            },
             itemStyle: {
               borderWidth: 1,
               borderColor: 'rgba(255,255,255,0.3)',
             },
           },
         ],
-        backgroundColor: '#B2C4D0', // 固定背景色
+        backgroundColor: '#B2C4D0',
       });
     } catch (e) {
       console.error(e);
