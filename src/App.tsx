@@ -43,17 +43,30 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
 
   useEffect(() => {
     if (!chartRef.current) return;
+
+    // ----- 新增：强制设置所有父级容器高度为 100% -----
+    const updateParentHeights = () => {
+      let element = chartRef.current?.parentElement;
+      while (element && element !== document.body) {
+        element.style.height = '100%';
+        element = element.parentElement;
+      }
+    };
+    updateParentHeights();
+    window.addEventListener('resize', updateParentHeights);
+    // ------------------------------------------------
+
     chartInstance.current = echarts.init(chartRef.current);
 
-    // 监听容器大小变化，自动调整图表
     const resizeObserver = new ResizeObserver(() => {
       chartInstance.current?.resize();
     });
     resizeObserver.observe(chartRef.current);
 
     return () => {
-      chartInstance.current?.dispose();
+      window.removeEventListener('resize', updateParentHeights);
       resizeObserver.disconnect();
+      chartInstance.current?.dispose();
     };
   }, []);
 
