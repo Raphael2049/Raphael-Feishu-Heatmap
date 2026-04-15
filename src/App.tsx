@@ -39,50 +39,39 @@ const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label,
 // ---------- 热力图图表组件 ----------
 function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts>();
 
+  // 动态计算并设置高度
+  useEffect(() => {
+    const container = containerRef.current;
+    const chartDom = chartRef.current;
+    if (!container || !chartDom) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { height } = entry.contentRect;
+        // 直接设置图表容器的像素高度
+        chartDom.style.height = `${height}px`;
+        chartInstance.current?.resize();
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // 初始化 ECharts
   useEffect(() => {
     if (!chartRef.current) return;
-
-    // 强制设置从图表容器到 body 的所有父元素高度为 100%
-    const forceParentHeights = () => {
-      let el = chartRef.current?.parentElement;
-      while (el && el !== document.body) {
-        el.style.height = '100%';
-        el.style.minHeight = '0';
-        el.style.flex = '1';
-        el = el.parentElement;
-      }
-      // 同时确保 body 和 html 也是 100%
-      document.body.style.height = '100%';
-      document.documentElement.style.height = '100%';
-    };
-
-    forceParentHeights();
-
-    // 初始化图表
     chartInstance.current = echarts.init(chartRef.current);
 
-    // 使用 ResizeObserver 监听容器大小变化
-    const resizeObserver = new ResizeObserver(() => {
-      chartInstance.current?.resize();
-    });
-    resizeObserver.observe(chartRef.current);
-
-    // 同时监听 window 的 resize，作为兜底
-    const handleWindowResize = () => {
-      chartInstance.current?.resize();
-      forceParentHeights();
-    };
-    window.addEventListener('resize', handleWindowResize);
-
     return () => {
-      window.removeEventListener('resize', handleWindowResize);
-      resizeObserver.disconnect();
       chartInstance.current?.dispose();
     };
   }, []);
 
+  // 更新图表配置
   useEffect(() => {
     if (!chartInstance.current || !options) return;
     chartInstance.current.setOption(options, { notMerge: true });
@@ -90,13 +79,22 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
 
   return (
     <div
-      ref={chartRef}
+      ref={containerRef}
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '400px', // 保证最小高度
+        minHeight: '600px',
+        position: 'relative',
       }}
-    />
+    >
+      <div
+        ref={chartRef}
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
+      />
+    </div>
   );
 }
 
