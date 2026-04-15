@@ -14,6 +14,7 @@ interface IHeatmapConfig {
   valueFieldId: string;
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
+  axisLabelFontSize: number; // 新增：坐标轴标签字体大小
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -23,12 +24,23 @@ const defaultConfig: IHeatmapConfig = {
   valueFieldId: '',
   aggregate: 'count',
   colorRange: ['#313695', '#a50026'],
+  axisLabelFontSize: 11, // 默认字体大小
 };
 
-// ---------- 简易表单 Item（主题适配）----------
+// ---------- 简易表单 Item ----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
-  const { theme } = useTheme(); // 直接使用已有的主题钩子
-  const labelColor = theme === 'dark' ? '#E8E8E8' : '#1F2329';
+  const [labelColor, setLabelColor] = useState('#1F2329');
+
+  useEffect(() => {
+    const updateColor = () => {
+      const theme = document.body.getAttribute('theme-mode');
+      setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
+    };
+    updateColor();
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
+    return () => observer.disconnect();
+  }, []);
 
   if (!children && !label) return null;
   return (
@@ -91,6 +103,12 @@ function ConfigPanel({
   onSave: () => void;
 }) {
   const { t } = useTranslation();
+
+  // 字体大小选项
+  const fontSizeOptions = [10, 11, 12, 13, 14].map(size => ({
+    label: `${size}px`,
+    value: size,
+  }));
 
   return (
     <div className="config-panel">
@@ -155,6 +173,14 @@ function ConfigPanel({
             />
           </div>
         </Item>
+        <Item label="坐标轴字体大小">
+          <Select
+            value={config.axisLabelFontSize}
+            onChange={(v) => setConfig({ ...config, axisLabelFontSize: v as number })}
+            optionList={fontSizeOptions}
+            style={{ width: '100%' }}
+          />
+        </Item>
       </div>
       <Button theme="solid" onClick={onSave}>{t('confirm')}</Button>
     </div>
@@ -163,16 +189,13 @@ function ConfigPanel({
 
 // ---------- 主应用 ----------
 export default function App() {
-  const { bgColor, theme } = useTheme(); // 获取主题
+  const { bgColor } = useTheme();
   const [config, setConfig] = useState<IHeatmapConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
   const [tableList, setTableList] = useState<any[]>([]);
   const [fieldList, setFieldList] = useState<any[]>([]);
   const [chartOptions, setChartOptions] = useState<echarts.EChartsOption>({});
   const [chartHeight, setChartHeight] = useState(400);
-
-  // 根据主题计算坐标轴标签颜色
-  const axisLabelColor = theme === 'dark' ? '#E8E8E8' : '#1F2329';
 
   const dashboardState = dashboard.state;
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
@@ -288,10 +311,9 @@ export default function App() {
           splitArea: { show: true },
           axisLabel: {
             rotate: 30,
-            fontSize: 11,
+            fontSize: config.axisLabelFontSize,
             interval: 0,
             overflow: 'break',
-            color: axisLabelColor,
           },
         },
         yAxis: {
@@ -299,8 +321,7 @@ export default function App() {
           data: yCats,
           splitArea: { show: true },
           axisLabel: {
-            fontSize: 11,
-            color: axisLabelColor,
+            fontSize: config.axisLabelFontSize,
           },
         },
         visualMap: {
@@ -320,7 +341,7 @@ export default function App() {
             },
           },
         ],
-        backgroundColor: bgColor,
+        backgroundColor: '#B2C4D0', // 固定背景色
       });
     } catch (e) {
       console.error(e);
@@ -328,12 +349,14 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [config, bgColor, axisLabelColor]);
+  }, [config]);
 
+  // View 状态下拉取数据
   useEffect(() => {
     if (isView) fetchData();
   }, [isView, fetchData]);
 
+  // 保存配置
   const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
 
   if (dashboardState === DashboardState.Create) {

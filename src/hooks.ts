@@ -1,5 +1,6 @@
-import { dashboard, DashboardState } from "@lark-base-open/js-sdk";
-import React, { useLayoutEffect, useState } from "react";
+import { DashboardState, bitable, dashboard } from "@lark-base-open/js-sdk";
+import React from "react";
+import { useLayoutEffect, useState } from "react";
 
 function updateTheme(theme: string) {
   document.body.setAttribute('theme-mode', theme);
@@ -8,42 +9,42 @@ function updateTheme(theme: string) {
 /** 跟随主题色变化 */
 export function useTheme() {
   const [bgColor, setBgColor] = useState('#ffffff');
-  const [theme, setTheme] = useState('light');
-
   useLayoutEffect(() => {
     dashboard.getTheme().then((res) => {
       setBgColor(res.chartBgColor);
-      setTheme(res.theme.toLowerCase());
-      updateTheme(res.theme.toLowerCase());
-    });
+      updateTheme(res.theme.toLocaleLowerCase());
+    })
 
     dashboard.onThemeChange((res) => {
       setBgColor(res.data.chartBgColor);
-      setTheme(res.data.theme.toLowerCase());
-      updateTheme(res.data.theme.toLowerCase());
-    });
-  }, []);
-
-  return { bgColor, theme };
+      updateTheme(res.data.theme.toLocaleLowerCase());
+    })
+  }, [])
+  return {
+    bgColor,
+  }
 }
 
 /** 初始化、更新config */
 export function useConfig(updateConfig: (data: any) => void) {
-  const isCreate = dashboard.state === DashboardState.Create;
 
+  const isCreate = dashboard.state === DashboardState.Create
   React.useEffect(() => {
     if (isCreate) {
-      return;
+      return
     }
+    // 初始化获取配置
     dashboard.getConfig().then(updateConfig);
   }, []);
 
+
   React.useEffect(() => {
     const offConfigChange = dashboard.onConfigChange((r) => {
+      // 监听配置变化，协同修改配置
       updateConfig(r.data);
     });
     return () => {
       offConfigChange();
-    };
+    }
   }, []);
 }
