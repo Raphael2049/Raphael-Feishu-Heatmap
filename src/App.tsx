@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from './hooks';
 import './App.scss';
 
-// ---------- 类型定义 ----------
 interface IHeatmapConfig {
   tableId: string;
   xFieldId: string;
@@ -14,7 +13,7 @@ interface IHeatmapConfig {
   valueFieldId: string;
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
-  axisLabelFontSize: number; // 新增：坐标轴标签字体大小
+  axisLabelFontSize: number;
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -24,34 +23,19 @@ const defaultConfig: IHeatmapConfig = {
   valueFieldId: '',
   aggregate: 'count',
   colorRange: ['#313695', '#a50026'],
-  axisLabelFontSize: 11, // 默认字体大小
+  axisLabelFontSize: 12,
 };
 
-// ---------- 简易表单 Item ----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
-  const [labelColor, setLabelColor] = useState('#1F2329');
-
-  useEffect(() => {
-    const updateColor = () => {
-      const theme = document.body.getAttribute('theme-mode');
-      setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
-    };
-    updateColor();
-    const observer = new MutationObserver(updateColor);
-    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
-    return () => observer.disconnect();
-  }, []);
-
   if (!children && !label) return null;
   return (
     <div className="form-item">
-      {label ? <div className="label" style={{ color: labelColor }}>{label}</div> : null}
+      {label ? <div className="label">{label}</div> : null}
       {children ? <div>{children}</div> : null}
     </div>
   );
 };
 
-// ---------- 热力图图表组件 ----------
 function HeatmapChart({ options, height }: { options: echarts.EChartsOption; height: number }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts>();
@@ -59,12 +43,8 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
   useEffect(() => {
     if (!chartRef.current) return;
     chartInstance.current = echarts.init(chartRef.current);
-
-    const resizeObserver = new ResizeObserver(() => {
-      chartInstance.current?.resize();
-    });
+    const resizeObserver = new ResizeObserver(() => chartInstance.current?.resize());
     resizeObserver.observe(chartRef.current);
-
     return () => {
       chartInstance.current?.dispose();
       resizeObserver.disconnect();
@@ -82,13 +62,12 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
       style={{
         width: '100%',
         height: `${height}px`,
-        minHeight: '300px',
+        minHeight: '400px',
       }}
     />
   );
 }
 
-// ---------- 配置面板 ----------
 function ConfigPanel({
   config,
   setConfig,
@@ -104,8 +83,7 @@ function ConfigPanel({
 }) {
   const { t } = useTranslation();
 
-  // 字体大小选项
-  const fontSizeOptions = [10, 11, 12, 13, 14].map(size => ({
+  const fontSizeOptions = [10, 11, 12, 13, 14, 16].map(size => ({
     label: `${size}px`,
     value: size,
   }));
@@ -141,9 +119,7 @@ function ConfigPanel({
           <Select
             value={config.valueFieldId}
             onChange={(v) => setConfig({ ...config, valueFieldId: v as string })}
-            optionList={fieldList
-              .filter((f) => f.type === 2) // 数字类型
-              .map((f) => ({ label: f.name, value: f.id }))}
+            optionList={fieldList.filter((f) => f.type === 2).map((f) => ({ label: f.name, value: f.id }))}
             style={{ width: '100%' }}
           />
         </Item>
@@ -187,7 +163,6 @@ function ConfigPanel({
   );
 }
 
-// ---------- 主应用 ----------
 export default function App() {
   const { bgColor } = useTheme();
   const [config, setConfig] = useState<IHeatmapConfig>(defaultConfig);
@@ -201,7 +176,12 @@ export default function App() {
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
   const isView = dashboardState === DashboardState.View || dashboardState === DashboardState.FullScreen;
 
-  // 加载配置
+  // 根据主题获取热力图背景色
+  const getHeatmapBgColor = () => {
+    const theme = document.body.getAttribute('theme-mode');
+    return theme === 'dark' ? '#1A1A1A' : '#B2C4D0';
+  };
+
   useEffect(() => {
     if (dashboardState === DashboardState.Create) return;
     dashboard.getConfig().then((res) => {
@@ -211,7 +191,6 @@ export default function App() {
     }).catch(console.error);
   }, [dashboardState]);
 
-  // 监听配置变更
   useEffect(() => {
     const off = dashboard.onConfigChange((res) => {
       if (res.data.customConfig) {
@@ -221,12 +200,10 @@ export default function App() {
     return () => off();
   }, []);
 
-  // 获取表格列表
   useEffect(() => {
     bitable.base.getTableMetaList().then(setTableList).catch(console.error);
   }, []);
 
-  // 获取字段列表
   useEffect(() => {
     if (!config.tableId) return;
     bitable.base.getTableById(config.tableId)
@@ -235,19 +212,17 @@ export default function App() {
       .catch(console.error);
   }, [config.tableId]);
 
-  // 从单元格提取字符串值
   const getCellString = (cell: any): string => {
     if (cell == null) return '';
     if (typeof cell === 'string') return cell;
     if (typeof cell === 'number') return String(cell);
     if (Array.isArray(cell)) {
-      return cell.map((v) => (typeof v === 'object' && v.text ? v.text : String(v))).join(',');
+      return cell.map((v: any) => (typeof v === 'object' && v.text ? v.text : String(v))).join(',');
     }
     if (typeof cell === 'object' && cell.text) return cell.text;
     return String(cell);
   };
 
-  // 获取并聚合数据
   const fetchData = useCallback(async () => {
     if (!config.tableId || !config.xFieldId || !config.yFieldId || !config.valueFieldId) return;
     setLoading(true);
@@ -341,7 +316,7 @@ export default function App() {
             },
           },
         ],
-        backgroundColor: '#B2C4D0', // 固定背景色
+        backgroundColor: getHeatmapBgColor(),
       });
     } catch (e) {
       console.error(e);
@@ -351,12 +326,10 @@ export default function App() {
     }
   }, [config]);
 
-  // View 状态下拉取数据
   useEffect(() => {
     if (isView) fetchData();
   }, [isView, fetchData]);
 
-  // 保存配置
   const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
 
   if (dashboardState === DashboardState.Create) {
