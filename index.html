@@ -1,32 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="./assets/favicon-OtBKyZol-OtBKyZol.svg" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Base Script</title>
-  <script>
-  function isMobileLark() {
-    const ua = window.navigator.userAgent;
-    const isLark = /feishu/i.test(ua) || /lark/i.test(ua);
-    const isMobile = /mobile|android|iphone|ipad|phone/i.test(ua);
-    return isLark && isMobile;
-  }
-  if (isMobileLark()) {
-    window.location.href = "https://ext.baseopendev.com/ext/dashboard_mobile_disable/14c264309a784b577484d14f227664050a115ed7/index.html";
-    document.head.insertAdjacentHTML(
-      "beforeend",
-      `<meta http-equiv="Content-Security-Policy" content="script-src 'none'">`
-    );
-  }
-  </script>
-  <script type="module" crossorigin src="./assets/index-6h7RkJ76.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C6q9pScl.css">
+  <title>Heatmap Plugin</title>
 </head>
-
 <body>
-  <div id="root"></div>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
 </body>
-
 </html>
