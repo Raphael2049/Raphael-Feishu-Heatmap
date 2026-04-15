@@ -283,36 +283,7 @@ body {
     background: transparent !important;
 }
 
-html, body, #root {
-  height: 100% !important;
-  min-height: 100% !important;
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
-.main-config {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  min-height: 0;
-}
-
-.content {
-  flex: 1;
-  min-height: 0;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.content > div {
-  height: 100%;
-}
-
+// 确保根容器占满全高
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -324,6 +295,15 @@ html, body, #root {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;       // 防止主容器滚动
+}
+
+.main-config {
+  display: flex;
+  flex-direction: row;    // 配置模式下左右布局
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .content {
@@ -331,4 +311,10 @@ html, body, #root {
   min-height: 0;
   padding: 20px;
   box-sizing: border-box;
+  overflow-y: auto;        // 允许垂直滚动
+}
+
+// 图表容器最小高度
+.content > div {
+  min-height: 300px;
 }

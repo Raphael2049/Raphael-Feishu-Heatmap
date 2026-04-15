@@ -37,41 +37,25 @@ const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label,
 };
 
 // ---------- 热力图图表组件 ----------
-function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
+function HeatmapChart({ options, height }: { options: echarts.EChartsOption; height: number }) {
   const chartRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts>();
 
-  // 动态计算并设置高度
-  useEffect(() => {
-    const container = containerRef.current;
-    const chartDom = chartRef.current;
-    if (!container || !chartDom) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { height } = entry.contentRect;
-        // 直接设置图表容器的像素高度
-        chartDom.style.height = `${height}px`;
-        chartInstance.current?.resize();
-      }
-    });
-
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  // 初始化 ECharts
   useEffect(() => {
     if (!chartRef.current) return;
     chartInstance.current = echarts.init(chartRef.current);
 
+    const resizeObserver = new ResizeObserver(() => {
+      chartInstance.current?.resize();
+    });
+    resizeObserver.observe(chartRef.current);
+
     return () => {
       chartInstance.current?.dispose();
+      resizeObserver.disconnect();
     };
   }, []);
 
-  // 更新图表配置
   useEffect(() => {
     if (!chartInstance.current || !options) return;
     chartInstance.current.setOption(options, { notMerge: true });
@@ -79,22 +63,13 @@ function HeatmapChart({ options }: { options: echarts.EChartsOption }) {
 
   return (
     <div
-      ref={containerRef}
+      ref={chartRef}
       style={{
         width: '100%',
-        height: '100%',
-        minHeight: '600px',
-        position: 'relative',
+        height: `${height}px`,
+        minHeight: '300px',
       }}
-    >
-      <div
-        ref={chartRef}
-        style={{
-          width: '100%',
-          height: '100%',
-        }}
-      />
-    </div>
+    />
   );
 }
 
@@ -191,6 +166,7 @@ export default function App() {
   const [tableList, setTableList] = useState<any[]>([]);
   const [fieldList, setFieldList] = useState<any[]>([]);
   const [chartOptions, setChartOptions] = useState<echarts.EChartsOption>({});
+  const [chartHeight, setChartHeight] = useState(400); // 动态图表高度
 
   const dashboardState = dashboard.state;
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
@@ -287,12 +263,20 @@ export default function App() {
         });
       });
 
+      // 固定每个单元格的高度（单位：px）
+      const CELL_HEIGHT = 30;
+      // 坐标轴、边距等额外高度（可根据实际微调）
+      const CHART_PADDING = 100;
+      // 计算图表所需总高度
+      const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
+      setChartHeight(Math.max(calculatedHeight, 600)); // 至少 600px
+
       setChartOptions({
         grid: {
           left: '15%',
           right: '5%',
-          bottom: '20%',
-          top: '10%',
+          top: 60,
+          bottom: 60,
           containLabel: false,
         },
         xAxis: {
@@ -347,7 +331,7 @@ export default function App() {
   }, [isView, fetchData]);
 
   // 保存配置
-    const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
+  const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
 
   // 如果当前是 Create 状态，直接显示配置面板
   if (dashboardState === DashboardState.Create) {
@@ -375,7 +359,7 @@ export default function App() {
       ) : (
         <div className="content" style={{ padding: 20 }}>
           <Spin spinning={loading}>
-            <HeatmapChart options={chartOptions} />
+            <HeatmapChart options={chartOptions} height={chartHeight} />
           </Spin>
         </div>
       )}
