@@ -25,9 +25,9 @@ const defaultConfig: IHeatmapConfig = {
   colorRange: ['#313695', '#a50026'],
 };
 
-// ---------- 简易表单 Item ----------
+// ---------- 简易表单 Item（带主题适配）----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
-  const [labelColor, setLabelColor] = useState('#1F2329'); // 默认深色文字
+  const [labelColor, setLabelColor] = useState('#1F2329');
 
   useEffect(() => {
     const updateColor = () => {
@@ -35,7 +35,6 @@ const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label,
       setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
     };
     updateColor();
-    // 监听主题变化（如果有的话）
     const observer = new MutationObserver(updateColor);
     observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
     return () => observer.disconnect();
@@ -180,7 +179,20 @@ export default function App() {
   const [tableList, setTableList] = useState<any[]>([]);
   const [fieldList, setFieldList] = useState<any[]>([]);
   const [chartOptions, setChartOptions] = useState<echarts.EChartsOption>({});
-  const [chartHeight, setChartHeight] = useState(400); // 动态图表高度
+  const [chartHeight, setChartHeight] = useState(400);
+  const [axisLabelColor, setAxisLabelColor] = useState('#1F2329');
+
+  // 监听主题变化，更新坐标轴标签颜色
+  useEffect(() => {
+    const updateAxisColor = () => {
+      const theme = document.body.getAttribute('theme-mode');
+      setAxisLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
+    };
+    updateAxisColor();
+    const observer = new MutationObserver(updateAxisColor);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
+    return () => observer.disconnect();
+  }, []);
 
   const dashboardState = dashboard.state;
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
@@ -277,13 +289,10 @@ export default function App() {
         });
       });
 
-      // 固定每个单元格的高度（单位：px）
       const CELL_HEIGHT = 40;
-      // 坐标轴、边距等额外高度（可根据实际微调）
       const CHART_PADDING = 100;
-      // 计算图表所需总高度
       const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
-      setChartHeight(Math.max(calculatedHeight, 600)); // 至少 600px
+      setChartHeight(Math.max(calculatedHeight, 600));
 
       setChartOptions({
         grid: {
@@ -302,6 +311,7 @@ export default function App() {
             fontSize: 11,
             interval: 0,
             overflow: 'break',
+            color: axisLabelColor,
           },
         },
         yAxis: {
@@ -310,6 +320,7 @@ export default function App() {
           splitArea: { show: true },
           axisLabel: {
             fontSize: 11,
+            color: axisLabelColor,
           },
         },
         visualMap: {
@@ -337,17 +348,14 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [config, bgColor]);
+  }, [config, bgColor, axisLabelColor]);
 
-  // View 状态下拉取数据
   useEffect(() => {
     if (isView) fetchData();
   }, [isView, fetchData]);
 
-  // 保存配置
   const onSave = () => dashboard.saveConfig({ customConfig: config, dataConditions: [] } as any);
 
-  // 如果当前是 Create 状态，直接显示配置面板
   if (dashboardState === DashboardState.Create) {
     return (
       <ConfigPanel
