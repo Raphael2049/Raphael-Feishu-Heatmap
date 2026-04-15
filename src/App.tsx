@@ -27,10 +27,24 @@ const defaultConfig: IHeatmapConfig = {
 
 // ---------- 简易表单 Item ----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
+  const [labelColor, setLabelColor] = useState('#1F2329'); // 默认深色文字
+
+  useEffect(() => {
+    const updateColor = () => {
+      const theme = document.body.getAttribute('theme-mode');
+      setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
+    };
+    updateColor();
+    // 监听主题变化（如果有的话）
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
+    return () => observer.disconnect();
+  }, []);
+
   if (!children && !label) return null;
   return (
     <div className="form-item">
-      {label ? <div className="label">{label}</div> : null}
+      {label ? <div className="label" style={{ color: labelColor }}>{label}</div> : null}
       {children ? <div>{children}</div> : null}
     </div>
   );
