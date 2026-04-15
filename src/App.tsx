@@ -25,20 +25,10 @@ const defaultConfig: IHeatmapConfig = {
   colorRange: ['#313695', '#a50026'],
 };
 
-// ---------- 简易表单 Item（带主题适配）----------
+// ---------- 简易表单 Item（主题适配）----------
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
-  const [labelColor, setLabelColor] = useState('#1F2329');
-
-  useEffect(() => {
-    const updateColor = () => {
-      const theme = document.body.getAttribute('theme-mode');
-      setLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
-    };
-    updateColor();
-    const observer = new MutationObserver(updateColor);
-    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
-    return () => observer.disconnect();
-  }, []);
+  const { theme } = useTheme(); // 直接使用已有的主题钩子
+  const labelColor = theme === 'dark' ? '#E8E8E8' : '#1F2329';
 
   if (!children && !label) return null;
   return (
@@ -173,26 +163,16 @@ function ConfigPanel({
 
 // ---------- 主应用 ----------
 export default function App() {
-  const { bgColor } = useTheme();
+  const { bgColor, theme } = useTheme(); // 获取主题
   const [config, setConfig] = useState<IHeatmapConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
   const [tableList, setTableList] = useState<any[]>([]);
   const [fieldList, setFieldList] = useState<any[]>([]);
   const [chartOptions, setChartOptions] = useState<echarts.EChartsOption>({});
   const [chartHeight, setChartHeight] = useState(400);
-  const [axisLabelColor, setAxisLabelColor] = useState('#1F2329');
 
-  // 监听主题变化，更新坐标轴标签颜色
-  useEffect(() => {
-    const updateAxisColor = () => {
-      const theme = document.body.getAttribute('theme-mode');
-      setAxisLabelColor(theme === 'dark' ? '#E8E8E8' : '#1F2329');
-    };
-    updateAxisColor();
-    const observer = new MutationObserver(updateAxisColor);
-    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
-    return () => observer.disconnect();
-  }, []);
+  // 根据主题计算坐标轴标签颜色
+  const axisLabelColor = theme === 'dark' ? '#E8E8E8' : '#1F2329';
 
   const dashboardState = dashboard.state;
   const isConfig = dashboardState === DashboardState.Config || dashboardState === DashboardState.Create;
