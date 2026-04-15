@@ -318,3 +318,18 @@ html, body, #root {
 .content > div {
   min-height: 300px;
 }
+
+.form-item {
+  margin-bottom: 16px;
+  color: var(--semi-color-text-0); // 整体文本颜色
+
+  .label {
+    color: var(--semi-color-text-0); // 标签颜色
+    padding-bottom: 6px;
+    font-family: PingFang SC;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 22px;
+    text-align: left;
+  }
+}

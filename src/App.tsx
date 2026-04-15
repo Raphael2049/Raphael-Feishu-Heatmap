@@ -264,7 +264,7 @@ export default function App() {
       });
 
       // 固定每个单元格的高度（单位：px）
-      const CELL_HEIGHT = 30;
+      const CELL_HEIGHT = 40;
       // 坐标轴、边距等额外高度（可根据实际微调）
       const CHART_PADDING = 100;
       // 计算图表所需总高度
