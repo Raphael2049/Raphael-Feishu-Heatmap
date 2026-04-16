@@ -412,7 +412,7 @@ export default function App() {
       const xCats = Object.keys(aggMap).sort((a, b) => xAggValues[b] - xAggValues[a]);
       const ySet = new Set<string>();
       xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
-      const yCats = Array.from(ySet).sort((a, b) => (yAggValues[b] || 0) - (yAggValues[a] || 0));
+      const yCats = Array.from(ySet).sort((a, b) => (yAggValues[a] || 0) - (yAggValues[b] || 0));
 
       const bgData: [number, number, number][] = [];
       const labelData: [number, number, number][] = [];
@@ -486,7 +486,6 @@ export default function App() {
           axisLabel: {
             fontSize: config.axisLabelFontSize,
           },
-          inverse: true,
         },
         visualMap: {
           min: bgMin,
