@@ -456,7 +456,6 @@ export default function App() {
       const bgMin = config.colorMode === 'xProportion' ? 0 : Math.min(...bgValues, 0);
       const bgMax = config.colorMode === 'xProportion' ? 1 : Math.max(...bgValues, 1);
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
-      const totalSum = labelValues.reduce((a, b) => a + b, 0);
 
       setChartOptions({
         grid: {
