@@ -121,10 +121,14 @@ function ConfigPanel({
     value: size,
   }));
 
-  // 可用的数字字段（包括数字和返回数字的公式字段）
+  // 放宽过滤条件：排除明显非数字的字段类型（文本、附件、复选框等），公式字段通常可返回数字
   const numberFields = fieldList.filter((f: any) => {
-    const actualType = f.proxyType !== undefined ? f.proxyType : f.type;
-    return actualType === 2;
+    // 排除明确不是数字的类型（可根据实际情况调整）
+    const nonNumericTypes = [1, 3, 4, 5, 7, 13, 15, 17, 18, 21, 22, 23, 25];
+    const actualType = f.proxyType ?? f.type;
+    // 输出字段信息以便调试（可在控制台查看）
+    console.log(`字段: ${f.name}, type: ${f.type}, proxyType: ${f.proxyType}`);
+    return !nonNumericTypes.includes(actualType);
   });
 
   return (
