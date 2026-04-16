@@ -465,20 +465,42 @@ export default function App() {
             label: {
               show: config.showLabel,
               fontSize: config.labelFontSize,
-              color: ((params: any) => {
-                if (!hasLabelField) return '#1F2329';
-                const idx = params.dataIndex;
-                return labelColors[idx] || '#1F2329';
-              }) as any, // 强制绕过类型检查
+              // 不用 color 字段，改用 formatter 内嵌样式
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
-                    if (config.valueFormat === 'percent') {
-                      if (totalSum === 0) return '0.00%';
-                      return ((value / totalSum) * 100).toFixed(2) + '%';
+                    // 获取显示值
+                    let displayValue: number;
+                    if (hasLabelField && labelData[idx]) {
+                      displayValue = labelData[idx][2];
+                    } else {
+                      displayValue = bgData[idx][2];
                     }
-                    return value.toFixed(2);
+
+                    // 计算百分比或原始值字符串
+                    let text: string;
+                    if (config.valueFormat === 'percent') {
+                      const total = hasLabelField
+                        ? labelValues.reduce((a, b) => a + b, 0)
+                        : bgValues.reduce((a, b) => a + b, 0);
+                      if (total === 0) {
+                        text = '0.00%';
+                      } else {
+                        text = ((displayValue / total) * 100).toFixed(2) + '%';
+                      }
+                    } else {
+                      text = displayValue.toFixed(2);
+                    }
+
+                    // 根据阈值决定颜色（仅当存在显示字段且阈值有效时）
+                    let color = '#1F2329'; // 默认深色
+                    if (hasLabelField) {
+                      const thresholdValue = labelMax * config.threshold;
+                      color = displayValue >= thresholdValue ? '#2ecc71' : '#e74c3c';
+                    }
+
+                    // 返回带颜色的 HTML
+                    return `<span style="color: ${color};">${text}</span>`;
                   }
                 : undefined,
             },
