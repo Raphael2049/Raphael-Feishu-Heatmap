@@ -465,20 +465,27 @@ export default function App() {
             label: {
               show: config.showLabel,
               fontSize: config.labelFontSize,
-              color: ((params: any) => {
-                if (!hasLabelField) return '#1F2329';
-                const idx = params.dataIndex;
-                return labelColors[idx] || '#1F2329';
-              }) as any,
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
                     const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
+                    let displayValue: string;
                     if (config.valueFormat === 'percent') {
-                      if (totalSum === 0) return '0.00%';
-                      return ((value / totalSum) * 100).toFixed(2) + '%';
+                      if (totalSum === 0) displayValue = '0.00%';
+                      else displayValue = ((value / totalSum) * 100).toFixed(2) + '%';
+                    } else {
+                      displayValue = value.toFixed(2);
                     }
-                    return value.toFixed(2);
+
+                    // 根据阈值决定颜色
+                    let color = '#1F2329'; // 默认
+                    if (hasLabelField) {
+                      const thresholdValue = labelMax * config.threshold;
+                      const currentLabelValue = labelData[idx] ? labelData[idx][2] : 0;
+                      color = currentLabelValue >= thresholdValue ? '#2ecc71' : '#e74c3c';
+                    }
+                    // 直接返回 HTML 字符串
+                    return `<span style="color: ${color}; font-weight: 500;">${displayValue}</span>`;
                   }
                 : undefined,
             },
