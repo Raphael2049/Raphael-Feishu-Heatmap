@@ -469,6 +469,10 @@ export default function App() {
                 ? (params: any) => {
                     const idx = params.dataIndex;
                     const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
+                    // 值为0时不显示标签
+                    if (Math.abs(value) < 1e-9) {
+                      return '';
+                    }
                     let displayValue: string;
                     if (config.valueFormat === 'percent') {
                       displayValue = (value * 100).toFixed(2) + '%';
