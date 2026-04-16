@@ -470,11 +470,11 @@ export default function App() {
                     const idx = params.dataIndex;
                     const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
                     let displayValue: string;
-                  if (config.valueFormat === 'percent') {
-                    displayValue = (value * 100).toFixed(2) + '%';
-                  } else {
-                    displayValue = value.toFixed(2);
-                  }
+                    if (config.valueFormat === 'percent') {
+                      displayValue = (value * 100).toFixed(2) + '%';
+                    } else {
+                      displayValue = value.toFixed(2);
+                    }
 
                     let styleName = 'defaultStyle';
                     if (hasLabelField) {
