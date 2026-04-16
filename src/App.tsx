@@ -477,17 +477,20 @@ export default function App() {
                       displayValue = value.toFixed(2);
                     }
 
-                    // 根据阈值决定颜色
-                    let color = '#1F2329'; // 默认
+                    let styleName = 'defaultStyle';
                     if (hasLabelField) {
                       const thresholdValue = labelMax * config.threshold;
                       const currentLabelValue = labelData[idx] ? labelData[idx][2] : 0;
-                      color = currentLabelValue >= thresholdValue ? '#2ecc71' : '#e74c3c';
+                      styleName = currentLabelValue >= thresholdValue ? 'greenStyle' : 'redStyle';
                     }
-                    // 直接返回 HTML 字符串
-                    return `<span style="color: ${color}; font-weight: 500;">${displayValue}</span>`;
+                    return `{${styleName}|${displayValue}}`;
                   }
                 : undefined,
+              rich: {
+                defaultStyle: { color: '#1F2329' },
+                greenStyle: { color: '#2ecc71' },
+                redStyle: { color: '#e74c3c' },
+              },
             },
             itemStyle: {
               borderWidth: 1,
