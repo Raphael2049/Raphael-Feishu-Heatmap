@@ -20,7 +20,7 @@ interface IHeatmapConfig {
   displayValueFieldId?: string;
   displayAggregate?: 'count' | 'sum' | 'average';
   threshold: number;
-  colorMode: 'absolute' | 'xProportion';
+  colorMode: 'absolute' | 'xProportion'; // 实际为Y轴比例，但名称保留
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -368,7 +368,7 @@ export default function App() {
         }
       }
 
-      // 计算排序权重
+      // 排序权重计算
       const xAggValues: Record<string, number> = {};
       const yAggValues: Record<string, number> = {};
 
@@ -384,7 +384,6 @@ export default function App() {
       for (const x in aggMap) {
         for (const y in aggMap[x]) {
           const val = aggMap[x][y];
-          const cnt = cntMap[x][y] || 1;
           const contribution = config.aggregate === 'average' ? val : val;
           if (!yAggValues[y]) yAggValues[y] = 0;
           yAggValues[y] += contribution;
@@ -407,13 +406,13 @@ export default function App() {
       xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
       const yCats = Array.from(ySet).sort((a, b) => (yAggValues[a] || 0) - (yAggValues[b] || 0));
 
-      // 计算横轴比例所需的总和
-      const colSums: Record<string, number> = {};
+      // 计算每行（Y分类）总和，用于比例模式
+      const rowSums: Record<string, number> = {};
       if (config.colorMode === 'xProportion') {
-        xCats.forEach(x => {
+        yCats.forEach(y => {
           let sum = 0;
-          yCats.forEach(y => { sum += aggMap[x]?.[y] || 0; });
-          colSums[x] = sum;
+          xCats.forEach(x => { sum += aggMap[x]?.[y] || 0; });
+          rowSums[y] = sum;
         });
       }
 
@@ -430,8 +429,8 @@ export default function App() {
           }
           let visualValue = rawValue;
           if (config.colorMode === 'xProportion') {
-            const colSum = colSums[x] || 1;
-            visualValue = rawValue / colSum;
+            const rowSum = rowSums[y] || 1;
+            visualValue = rawValue / rowSum;
           }
           bgData.push([xi, yi, visualValue]);
           bgValues.push(visualValue);
