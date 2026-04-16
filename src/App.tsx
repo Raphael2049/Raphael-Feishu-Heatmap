@@ -469,7 +469,12 @@ export default function App() {
             fontSize: config.axisLabelFontSize,
           },
         },
-        visualMap,
+        visualMap: {
+          min: bgMin,
+          max: bgMax,
+          calculable: true,
+          inRange: { color: config.colorRange },
+        },
         series: [
           {
             type: 'heatmap',
@@ -477,15 +482,16 @@ export default function App() {
             label: {
               show: config.showLabel,
               fontSize: config.labelFontSize,
-              formatter: config.showLabel && hasLabelField
+              color: '#1F2329', // 固定深色文字
+              formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    const labelValue = labelData[idx]?.[2] || 0;
+                    const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
                     if (config.valueFormat === 'percent') {
                       if (totalSum === 0) return '0.00%';
-                      return ((labelValue / totalSum) * 100).toFixed(2) + '%';
+                      return ((value / totalSum) * 100).toFixed(2) + '%';
                     }
-                    return labelValue.toFixed(2);
+                    return value.toFixed(2);
                   }
                 : undefined,
             },
