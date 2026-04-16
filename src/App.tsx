@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import * as echarts from 'echarts';
-import { Select, Button, Spin } from '@douyinfe/semi-ui';
+import { Select, Button, Spin, Switch } from '@douyinfe/semi-ui';
 import { dashboard, bitable, DashboardState } from '@lark-base-open/js-sdk';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from './hooks';
@@ -14,8 +14,14 @@ interface IHeatmapConfig {
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
   axisLabelFontSize: number;
+  // 标签相关
+  showLabel: boolean;
   labelFontSize: number;
   valueFormat: 'raw' | 'percent';
+  // 显示数值字段（可选）
+  displayValueFieldId?: string;
+  displayAggregate?: 'count' | 'sum' | 'average';
+  displayColorRange: [string, string];
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -26,8 +32,12 @@ const defaultConfig: IHeatmapConfig = {
   aggregate: 'count',
   colorRange: ['#ffffff', '#313695'],
   axisLabelFontSize: 13,
+  showLabel: false,
   labelFontSize: 10,
   valueFormat: 'raw',
+  displayValueFieldId: undefined,
+  displayAggregate: 'sum',
+  displayColorRange: ['#ffffff', '#d73027'],
 };
 
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
@@ -111,13 +121,16 @@ function ConfigPanel({
     value: size,
   }));
 
+  // 可用的数字字段（用于显示数值字段）
+  const numberFields = fieldList.filter((f: any) => f.type === 2);
+
   return (
     <div className="config-panel">
       <div className="form">
         <Item label="选择表格">
           <Select
             value={config.tableId}
-            onChange={(v) => setConfig({ ...config, tableId: v as string, xFieldId: '', yFieldId: '', valueFieldId: '' })}
+            onChange={(v) => setConfig({ ...config, tableId: v as string, xFieldId: '', yFieldId: '', valueFieldId: '', displayValueFieldId: undefined })}
             optionList={tableList.map((t) => ({ label: t.name, value: t.id }))}
             style={{ width: '100%' }}
           />
@@ -138,7 +151,7 @@ function ConfigPanel({
             style={{ width: '100%' }}
           />
         </Item>
-        <Item label="数值字段">
+        <Item label="数值字段（背景色）">
           <Select
             value={config.valueFieldId}
             onChange={(v) => setConfig({ ...config, valueFieldId: v as string })}
@@ -158,7 +171,7 @@ function ConfigPanel({
             style={{ width: '100%' }}
           />
         </Item>
-        <Item label="颜色范围">
+        <Item label="背景颜色范围">
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="color"
@@ -180,25 +193,78 @@ function ConfigPanel({
             style={{ width: '100%' }}
           />
         </Item>
-        <Item label="标签字体大小">
-          <Select
-            value={config.labelFontSize}
-            onChange={(v) => setConfig({ ...config, labelFontSize: v as number })}
-            optionList={labelFontSizeOptions}
-            style={{ width: '100%' }}
+
+        <Item label="显示数值标签">
+          <Switch
+            checked={config.showLabel}
+            onChange={(v) => setConfig({ ...config, showLabel: v })}
           />
         </Item>
-        <Item label="数值显示格式">
-          <Select
-            value={config.valueFormat}
-            onChange={(v) => setConfig({ ...config, valueFormat: v as 'raw' | 'percent' })}
-            optionList={[
-              { label: '原始值', value: 'raw' },
-              { label: '百分比', value: 'percent' },
-            ]}
-            style={{ width: '100%' }}
-          />
-        </Item>
+
+        {config.showLabel && (
+          <>
+            <Item label="标签字体大小">
+              <Select
+                value={config.labelFontSize}
+                onChange={(v) => setConfig({ ...config, labelFontSize: v as number })}
+                optionList={labelFontSizeOptions}
+                style={{ width: '100%' }}
+              />
+            </Item>
+            <Item label="数值显示格式">
+              <Select
+                value={config.valueFormat}
+                onChange={(v) => setConfig({ ...config, valueFormat: v as 'raw' | 'percent' })}
+                optionList={[
+                  { label: '原始值', value: 'raw' },
+                  { label: '百分比', value: 'percent' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </Item>
+            <Item label="显示数值字段（可选）">
+              <Select
+                value={config.displayValueFieldId}
+                onChange={(v) => setConfig({ ...config, displayValueFieldId: v ? String(v) : undefined })}
+                optionList={[
+                  { label: '与背景字段相同', value: '' },
+                  ...numberFields.map((f) => ({ label: f.name, value: f.id })),
+                ]}
+                style={{ width: '100%' }}
+              />
+            </Item>
+            {config.displayValueFieldId && (
+              <>
+                <Item label="显示值聚合方式">
+                  <Select
+                    value={config.displayAggregate}
+                    onChange={(v) => setConfig({ ...config, displayAggregate: v as IHeatmapConfig['displayAggregate'] })}
+                    optionList={[
+                      { label: '计数', value: 'count' },
+                      { label: '求和', value: 'sum' },
+                      { label: '平均值', value: 'average' },
+                    ]}
+                    style={{ width: '100%' }}
+                  />
+                </Item>
+                <Item label="显示颜色范围">
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="color"
+                      value={config.displayColorRange[0]}
+                      onChange={(e) => setConfig({ ...config, displayColorRange: [e.target.value, config.displayColorRange[1]] })}
+                    />
+                    <input
+                      type="color"
+                      value={config.displayColorRange[1]}
+                      onChange={(e) => setConfig({ ...config, displayColorRange: [config.displayColorRange[0], e.target.value] })}
+                    />
+                  </div>
+                </Item>
+              </>
+            )}
+          </>
+        )}
       </div>
       <Button theme="solid" onClick={onSave}>{t('confirm')}</Button>
     </div>
@@ -265,14 +331,21 @@ export default function App() {
     try {
       const table = await bitable.base.getTableById(config.tableId);
       const records = await table.getRecords({ pageSize: 5000 });
+
+      // 背景聚合数据
       const aggMap: Record<string, Record<string, number>> = {};
       const cntMap: Record<string, Record<string, number>> = {};
+      // 标签聚合数据（如果配置了显示字段）
+      const labelAggMap: Record<string, Record<string, number>> = {};
+      const labelCntMap: Record<string, Record<string, number>> = {};
+      const hasLabelField = config.showLabel && config.displayValueFieldId;
 
       for (const rec of records.records) {
         const cells = rec.fields;
         const x = getCellString(cells[config.xFieldId]);
         const y = getCellString(cells[config.yFieldId]);
         const val = cells[config.valueFieldId];
+
         if (!aggMap[x]) aggMap[x] = {};
         if (!aggMap[x][y]) aggMap[x][y] = 0;
         if (!cntMap[x]) cntMap[x] = {};
@@ -284,6 +357,23 @@ export default function App() {
           aggMap[x][y] += Number(val) || 0;
         }
         cntMap[x][y] += 1;
+
+        // 标签字段聚合
+        if (hasLabelField) {
+          const labelVal = cells[config.displayValueFieldId!];
+          if (!labelAggMap[x]) labelAggMap[x] = {};
+          if (!labelAggMap[x][y]) labelAggMap[x][y] = 0;
+          if (!labelCntMap[x]) labelCntMap[x] = {};
+          if (!labelCntMap[x][y]) labelCntMap[x][y] = 0;
+
+          const displayAgg = config.displayAggregate || 'sum';
+          if (displayAgg === 'count') {
+            labelAggMap[x][y] += 1;
+          } else if (displayAgg === 'sum') {
+            labelAggMap[x][y] += Number(labelVal) || 0;
+          }
+          labelCntMap[x][y] += 1;
+        }
       }
 
       const xCats = Object.keys(aggMap).sort();
@@ -292,14 +382,30 @@ export default function App() {
         Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y));
       });
       const yCats = Array.from(ySet).sort();
-      const data: [number, number, number][] = [];
+
+      const bgData: [number, number, number][] = [];
+      const labelData: [number, number, number][] = [];
+      const bgValues: number[] = [];
+      const labelValues: number[] = [];
+
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
           let v = aggMap[x]?.[y] || 0;
           if (config.aggregate === 'average') {
             v = v / (cntMap[x]?.[y] || 1);
           }
-          data.push([xi, yi, v]);
+          bgData.push([xi, yi, v]);
+          bgValues.push(v);
+
+          if (hasLabelField) {
+            let lv = labelAggMap[x]?.[y] || 0;
+            const displayAgg = config.displayAggregate || 'sum';
+            if (displayAgg === 'average') {
+              lv = lv / (labelCntMap[x]?.[y] || 1);
+            }
+            labelData.push([xi, yi, lv]);
+            labelValues.push(lv);
+          }
         });
       });
 
@@ -308,8 +414,33 @@ export default function App() {
       const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
       setChartHeight(Math.max(calculatedHeight, 600));
 
-      // 计算总和用于百分比（但不改变颜色映射数据）
-      const totalSum = data.reduce((sum, d) => sum + d[2], 0);
+      const bgMin = Math.min(...bgValues, 0);
+      const bgMax = Math.max(...bgValues, 1);
+      const labelMin = labelValues.length > 0 ? Math.min(...labelValues, 0) : 0;
+      const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
+      const totalSum = labelValues.reduce((a, b) => a + b, 0);
+
+      // 构建 visualMap
+      const visualMap: any[] = [
+        {
+          min: bgMin,
+          max: bgMax,
+          calculable: true,
+          inRange: { color: config.colorRange },
+          seriesIndex: 0,
+        },
+      ];
+
+      if (config.showLabel && hasLabelField) {
+        visualMap.push({
+          min: labelMin,
+          max: labelMax,
+          calculable: true,
+          inRange: { color: config.displayColorRange },
+          seriesIndex: 0,
+          target: 'label',
+        });
+      }
 
       setChartOptions({
         grid: {
@@ -338,27 +469,25 @@ export default function App() {
             fontSize: config.axisLabelFontSize,
           },
         },
-        visualMap: {
-          min: 0,
-          max: Math.max(...data.map((d) => d[2]), 1),
-          calculable: true,
-          inRange: { color: config.colorRange },
-        },
+        visualMap,
         series: [
           {
             type: 'heatmap',
-            data,
+            data: bgData,
             label: {
-              show: true,
+              show: config.showLabel,
               fontSize: config.labelFontSize,
-              formatter: (params: any) => {
-                const value = params.data[2];
-                if (config.valueFormat === 'percent') {
-                  if (totalSum === 0) return '0.00%';
-                  return ((value / totalSum) * 100).toFixed(2) + '%';
-                }
-                return value.toFixed(2);
-              },
+              formatter: config.showLabel && hasLabelField
+                ? (params: any) => {
+                    const idx = params.dataIndex;
+                    const labelValue = labelData[idx]?.[2] || 0;
+                    if (config.valueFormat === 'percent') {
+                      if (totalSum === 0) return '0.00%';
+                      return ((labelValue / totalSum) * 100).toFixed(2) + '%';
+                    }
+                    return labelValue.toFixed(2);
+                  }
+                : undefined,
             },
             itemStyle: {
               borderWidth: 1,
