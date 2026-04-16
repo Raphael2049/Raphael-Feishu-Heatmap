@@ -487,10 +487,15 @@ export default function App() {
             const modeLabel = config.colorMode === 'xProportion' ? '横轴比例' : '绝对值';
 
             let html = `<b>${info.xName} - ${info.yName}</b><br/>`;
-            html += `${modeLabel}：${modeValue.toFixed(4)}<br/>`;
-            html += `提及次数：${info.rawBgValue.toFixed(2)}<br/>`;
+            // 绝对值显示整数，比例显示百分比
+            if (config.colorMode === 'xProportion') {
+              html += `${modeLabel}：${(modeValue * 100).toFixed(2)}%<br/>`;
+            } else {
+              html += `${modeLabel}：${Math.round(modeValue)}<br/>`;
+            }
+            html += `提及次数：${Math.round(info.rawBgValue)}<br/>`;
             if (hasLabelField) {
-              html += `好评率：${info.labelValue.toFixed(4)}<br/>`;
+              html += `好评率：${(info.labelValue * 100).toFixed(2)}%<br/>`;
             }
             html += `场景：${info.yName}<br/>`;
             html += `功能：${info.xName}`;
