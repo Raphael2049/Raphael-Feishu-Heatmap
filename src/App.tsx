@@ -14,14 +14,13 @@ interface IHeatmapConfig {
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
   axisLabelFontSize: number;
-  // 标签相关
   showLabel: boolean;
   labelFontSize: number;
   valueFormat: 'raw' | 'percent';
-  // 显示数值字段（可选）
   displayValueFieldId?: string;
   displayAggregate?: 'count' | 'sum' | 'average';
-  threshold: number; // 新增：阈值，用于标签颜色判定
+  threshold: number;
+  colorMode: 'absolute' | 'xProportion';
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -38,6 +37,7 @@ const defaultConfig: IHeatmapConfig = {
   displayValueFieldId: undefined,
   displayAggregate: 'sum',
   threshold: 0.8,
+  colorMode: 'absolute',
 };
 
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
@@ -121,7 +121,6 @@ function ConfigPanel({
     value: size,
   }));
 
-  // 可用的数字字段（用于显示数值字段）
   const numberFields = fieldList.filter((f: any) => f.type === 2);
 
   return (
@@ -173,17 +172,20 @@ function ConfigPanel({
         </Item>
         <Item label="背景颜色范围">
           <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="color"
-              value={config.colorRange[0]}
-              onChange={(e) => setConfig({ ...config, colorRange: [e.target.value, config.colorRange[1]] })}
-            />
-            <input
-              type="color"
-              value={config.colorRange[1]}
-              onChange={(e) => setConfig({ ...config, colorRange: [config.colorRange[0], e.target.value] })}
-            />
+            <input type="color" value={config.colorRange[0]} onChange={(e) => setConfig({ ...config, colorRange: [e.target.value, config.colorRange[1]] })} />
+            <input type="color" value={config.colorRange[1]} onChange={(e) => setConfig({ ...config, colorRange: [config.colorRange[0], e.target.value] })} />
           </div>
+        </Item>
+        <Item label="背景色模式">
+          <Select
+            value={config.colorMode}
+            onChange={(v) => setConfig({ ...config, colorMode: v as IHeatmapConfig['colorMode'] })}
+            optionList={[
+              { label: '绝对值', value: 'absolute' },
+              { label: '横轴比例', value: 'xProportion' },
+            ]}
+            style={{ width: '100%' }}
+          />
         </Item>
         <Item label="坐标轴字体大小">
           <Select
@@ -195,10 +197,7 @@ function ConfigPanel({
         </Item>
 
         <Item label="显示数值标签">
-          <Switch
-            checked={config.showLabel}
-            onChange={(v) => setConfig({ ...config, showLabel: v })}
-          />
+          <Switch checked={config.showLabel} onChange={(v) => setConfig({ ...config, showLabel: v })} />
         </Item>
 
         {config.showLabel && (
@@ -328,10 +327,8 @@ export default function App() {
       const table = await bitable.base.getTableById(config.tableId);
       const records = await table.getRecords({ pageSize: 5000 });
 
-      // 背景聚合数据
       const aggMap: Record<string, Record<string, number>> = {};
       const cntMap: Record<string, Record<string, number>> = {};
-      // 标签聚合数据（如果配置了显示字段）
       const labelAggMap: Record<string, Record<string, number>> = {};
       const labelCntMap: Record<string, Record<string, number>> = {};
       const hasLabelField = config.showLabel && config.displayValueFieldId;
@@ -354,7 +351,6 @@ export default function App() {
         }
         cntMap[x][y] += 1;
 
-        // 标签字段聚合
         if (hasLabelField) {
           const labelVal = cells[config.displayValueFieldId!];
           if (!labelAggMap[x]) labelAggMap[x] = {};
@@ -372,9 +368,8 @@ export default function App() {
         }
       }
 
-      // 计算每个 X 分类的总聚合值（用于排序）
+      // 计算排序权重
       const xAggValues: Record<string, number> = {};
-      // 计算每个 Y 分类的总聚合值
       const yAggValues: Record<string, number> = {};
 
       for (const x in aggMap) {
@@ -395,7 +390,6 @@ export default function App() {
           yAggValues[y] += contribution;
         }
       }
-      // 若为 average，需对每个Y除以出现次数
       if (config.aggregate === 'average') {
         const yOccurrences: Record<string, number> = {};
         for (const x in aggMap) {
@@ -408,11 +402,20 @@ export default function App() {
         }
       }
 
-      // 按聚合值降序排序
       const xCats = Object.keys(aggMap).sort((a, b) => xAggValues[b] - xAggValues[a]);
       const ySet = new Set<string>();
       xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
       const yCats = Array.from(ySet).sort((a, b) => (yAggValues[a] || 0) - (yAggValues[b] || 0));
+
+      // 计算横轴比例所需的总和
+      const colSums: Record<string, number> = {};
+      if (config.colorMode === 'xProportion') {
+        xCats.forEach(x => {
+          let sum = 0;
+          yCats.forEach(y => { sum += aggMap[x]?.[y] || 0; });
+          colSums[x] = sum;
+        });
+      }
 
       const bgData: [number, number, number][] = [];
       const labelData: [number, number, number][] = [];
@@ -421,12 +424,17 @@ export default function App() {
 
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
-          let v = aggMap[x]?.[y] || 0;
+          let rawValue = aggMap[x]?.[y] || 0;
           if (config.aggregate === 'average') {
-            v = v / (cntMap[x]?.[y] || 1);
+            rawValue = rawValue / (cntMap[x]?.[y] || 1);
           }
-          bgData.push([xi, yi, v]);
-          bgValues.push(v);
+          let visualValue = rawValue;
+          if (config.colorMode === 'xProportion') {
+            const colSum = colSums[x] || 1;
+            visualValue = rawValue / colSum;
+          }
+          bgData.push([xi, yi, visualValue]);
+          bgValues.push(visualValue);
 
           if (hasLabelField) {
             let lv = labelAggMap[x]?.[y] || 0;
@@ -445,20 +453,10 @@ export default function App() {
       const calculatedHeight = yCats.length * CELL_HEIGHT + CHART_PADDING;
       setChartHeight(Math.max(calculatedHeight, 600));
 
-      const bgMin = Math.min(...bgValues, 0);
-      const bgMax = Math.max(...bgValues, 1);
+      const bgMin = config.colorMode === 'xProportion' ? 0 : Math.min(...bgValues, 0);
+      const bgMax = config.colorMode === 'xProportion' ? 1 : Math.max(...bgValues, 1);
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
       const totalSum = labelValues.reduce((a, b) => a + b, 0);
-
-      // 计算每个标签的颜色（基于阈值）
-      const labelColors: string[] = [];
-      if (hasLabelField) {
-        const thresholdValue = labelMax * config.threshold;
-        labelData.forEach(d => {
-          const value = d[2];
-          labelColors.push(value >= thresholdValue ? '#2ecc71' : '#e74c3c');
-        });
-      }
 
       setChartOptions({
         grid: {
@@ -504,10 +502,7 @@ export default function App() {
                 ? (params: any) => {
                     const idx = params.dataIndex;
                     const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
-                    // 值为0时不显示标签
-                    if (Math.abs(value) < 1e-9) {
-                      return '';
-                    }
+                    if (Math.abs(value) < 1e-9) return '';
                     let displayValue: string;
                     if (config.valueFormat === 'percent') {
                       displayValue = (value * 100).toFixed(2) + '%';
