@@ -20,7 +20,7 @@ interface IHeatmapConfig {
   displayValueFieldId?: string;
   displayAggregate?: 'count' | 'sum' | 'average';
   threshold: number;
-  colorMode: 'absolute' | 'xProportion'; // 实际为Y轴比例，但名称保留
+  colorMode: 'absolute' | 'xProportion';
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -420,6 +420,13 @@ export default function App() {
       const labelData: [number, number, number][] = [];
       const bgValues: number[] = [];
       const labelValues: number[] = [];
+      const cellInfo: {
+        xName: string;
+        yName: string;
+        rawBgValue: number;
+        visualBgValue: number;
+        labelValue: number;
+      }[][] = xCats.map(() => []);
 
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
@@ -432,18 +439,28 @@ export default function App() {
             const rowSum = rowSums[y] || 1;
             visualValue = rawValue / rowSum;
           }
+          const idx = bgData.length;
           bgData.push([xi, yi, visualValue]);
           bgValues.push(visualValue);
 
+          let labelVal = 0;
           if (hasLabelField) {
-            let lv = labelAggMap[x]?.[y] || 0;
+            labelVal = labelAggMap[x]?.[y] || 0;
             const displayAgg = config.displayAggregate || 'sum';
             if (displayAgg === 'average') {
-              lv = lv / (labelCntMap[x]?.[y] || 1);
+              labelVal = labelVal / (labelCntMap[x]?.[y] || 1);
             }
-            labelData.push([xi, yi, lv]);
-            labelValues.push(lv);
+            labelData.push([xi, yi, labelVal]);
+            labelValues.push(labelVal);
           }
+
+          cellInfo[xi][yi] = {
+            xName: x,
+            yName: y,
+            rawBgValue: rawValue,
+            visualBgValue: visualValue,
+            labelValue: labelVal,
+          };
         });
       });
 
@@ -457,6 +474,29 @@ export default function App() {
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
 
       setChartOptions({
+        tooltip: {
+          trigger: 'item',
+          formatter: (params: any) => {
+            const dataIndex = params.dataIndex;
+            const xi = Math.floor(dataIndex / yCats.length);
+            const yi = dataIndex % yCats.length;
+            const info = cellInfo[xi]?.[yi];
+            if (!info) return '';
+
+            const modeValue = config.colorMode === 'xProportion' ? info.visualBgValue : info.rawBgValue;
+            const modeLabel = config.colorMode === 'xProportion' ? '横轴比例' : '绝对值';
+
+            let html = `<b>${info.xName} - ${info.yName}</b><br/>`;
+            html += `${modeLabel}：${modeValue.toFixed(4)}<br/>`;
+            html += `提及次数：${info.rawBgValue.toFixed(2)}<br/>`;
+            if (hasLabelField) {
+              html += `好评率：${info.labelValue.toFixed(4)}<br/>`;
+            }
+            html += `场景：${info.yName}<br/>`;
+            html += `功能：${info.xName}`;
+            return html;
+          },
+        },
         grid: {
           left: '15%',
           right: '5%',
