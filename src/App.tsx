@@ -372,12 +372,47 @@ export default function App() {
         }
       }
 
-      const xCats = Object.keys(aggMap).sort();
+      // 计算每个 X 分类的总聚合值（用于排序）
+      const xAggValues: Record<string, number> = {};
+      // 计算每个 Y 分类的总聚合值
+      const yAggValues: Record<string, number> = {};
+
+      for (const x in aggMap) {
+        let xTotal = 0;
+        for (const y in aggMap[x]) {
+          const val = aggMap[x][y];
+          xTotal += config.aggregate === 'average' ? val * (cntMap[x][y] || 1) : val;
+        }
+        xAggValues[x] = config.aggregate === 'average' ? xTotal / (Object.keys(aggMap[x]).length || 1) : xTotal;
+      }
+
+      for (const x in aggMap) {
+        for (const y in aggMap[x]) {
+          const val = aggMap[x][y];
+          const cnt = cntMap[x][y] || 1;
+          const contribution = config.aggregate === 'average' ? val : val;
+          if (!yAggValues[y]) yAggValues[y] = 0;
+          yAggValues[y] += contribution;
+        }
+      }
+      // 若为 average，需对每个Y除以出现次数
+      if (config.aggregate === 'average') {
+        const yOccurrences: Record<string, number> = {};
+        for (const x in aggMap) {
+          for (const y in aggMap[x]) {
+            yOccurrences[y] = (yOccurrences[y] || 0) + 1;
+          }
+        }
+        for (const y in yAggValues) {
+          yAggValues[y] = yAggValues[y] / yOccurrences[y];
+        }
+      }
+
+      // 按聚合值降序排序
+      const xCats = Object.keys(aggMap).sort((a, b) => xAggValues[b] - xAggValues[a]);
       const ySet = new Set<string>();
-      xCats.forEach(x => {
-        Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y));
-      });
-      const yCats = Array.from(ySet).sort();
+      xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
+      const yCats = Array.from(ySet).sort((a, b) => (yAggValues[b] || 0) - (yAggValues[a] || 0));
 
       const bgData: [number, number, number][] = [];
       const labelData: [number, number, number][] = [];
