@@ -121,7 +121,11 @@ function ConfigPanel({
     value: size,
   }));
 
-  const numberFields = fieldList.filter((f: any) => f.type === 2);
+  // 可用的数字字段（包括数字和返回数字的公式字段）
+  const numberFields = fieldList.filter((f: any) => {
+    const actualType = f.proxyType !== undefined ? f.proxyType : f.type;
+    return actualType === 2;
+  });
 
   return (
     <div className="config-panel">
@@ -154,7 +158,7 @@ function ConfigPanel({
           <Select
             value={config.valueFieldId}
             onChange={(v) => setConfig({ ...config, valueFieldId: v as string })}
-            optionList={fieldList.filter((f) => f.type === 2).map((f) => ({ label: f.name, value: f.id }))}
+            optionList={numberFields.map((f: any) => ({ label: f.name, value: f.id }))}
             style={{ width: '100%' }}
           />
         </Item>
@@ -487,7 +491,6 @@ export default function App() {
             const modeLabel = config.colorMode === 'xProportion' ? '横轴比例' : '绝对值';
 
             let html = `<b>${info.xName} - ${info.yName}</b><br/>`;
-            // 绝对值显示整数，比例显示百分比
             if (config.colorMode === 'xProportion') {
               html += `${modeLabel}：${(modeValue * 100).toFixed(2)}%<br/>`;
             } else {
