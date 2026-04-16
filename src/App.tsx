@@ -14,14 +14,12 @@ interface IHeatmapConfig {
   aggregate: 'count' | 'sum' | 'average';
   colorRange: [string, string];
   axisLabelFontSize: number;
-  // 标签相关
   showLabel: boolean;
   labelFontSize: number;
   valueFormat: 'raw' | 'percent';
-  // 显示数值字段（可选）
   displayValueFieldId?: string;
   displayAggregate?: 'count' | 'sum' | 'average';
-  threshold: number; // 新增：阈值，用于标签颜色判定
+  threshold: number;
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -121,7 +119,6 @@ function ConfigPanel({
     value: size,
   }));
 
-  // 可用的数字字段（用于显示数值字段）
   const numberFields = fieldList.filter((f: any) => f.type === 2);
 
   return (
@@ -328,13 +325,11 @@ export default function App() {
       const table = await bitable.base.getTableById(config.tableId);
       const records = await table.getRecords({ pageSize: 5000 });
 
-      // 背景聚合数据
       const aggMap: Record<string, Record<string, number>> = {};
       const cntMap: Record<string, Record<string, number>> = {};
-      // 标签聚合数据（如果配置了显示字段）
       const labelAggMap: Record<string, Record<string, number>> = {};
       const labelCntMap: Record<string, Record<string, number>> = {};
-      const hasLabelField = config.showLabel && config.displayValueFieldId;
+      const hasLabelField = config.showLabel && !!config.displayValueFieldId;
 
       for (const rec of records.records) {
         const cells = rec.fields;
@@ -354,7 +349,6 @@ export default function App() {
         }
         cntMap[x][y] += 1;
 
-        // 标签字段聚合
         if (hasLabelField) {
           const labelVal = cells[config.displayValueFieldId!];
           if (!labelAggMap[x]) labelAggMap[x] = {};
@@ -374,9 +368,7 @@ export default function App() {
 
       const xCats = Object.keys(aggMap).sort();
       const ySet = new Set<string>();
-      xCats.forEach(x => {
-        Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y));
-      });
+      xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
       const yCats = Array.from(ySet).sort();
 
       const bgData: [number, number, number][] = [];
@@ -387,18 +379,14 @@ export default function App() {
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
           let v = aggMap[x]?.[y] || 0;
-          if (config.aggregate === 'average') {
-            v = v / (cntMap[x]?.[y] || 1);
-          }
+          if (config.aggregate === 'average') v = v / (cntMap[x]?.[y] || 1);
           bgData.push([xi, yi, v]);
           bgValues.push(v);
 
           if (hasLabelField) {
             let lv = labelAggMap[x]?.[y] || 0;
             const displayAgg = config.displayAggregate || 'sum';
-            if (displayAgg === 'average') {
-              lv = lv / (labelCntMap[x]?.[y] || 1);
-            }
+            if (displayAgg === 'average') lv = lv / (labelCntMap[x]?.[y] || 1);
             labelData.push([xi, yi, lv]);
             labelValues.push(lv);
           }
@@ -414,16 +402,6 @@ export default function App() {
       const bgMax = Math.max(...bgValues, 1);
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
       const totalSum = labelValues.reduce((a, b) => a + b, 0);
-
-      // 计算每个标签的颜色（基于阈值）
-      const labelColors: string[] = [];
-      if (hasLabelField) {
-        const thresholdValue = labelMax * config.threshold;
-        labelData.forEach(d => {
-          const value = d[2];
-          labelColors.push(value >= thresholdValue ? '#2ecc71' : '#e74c3c');
-        });
-      }
 
       setChartOptions({
         grid: {
@@ -465,11 +443,9 @@ export default function App() {
             label: {
               show: config.showLabel,
               fontSize: config.labelFontSize,
-              // 不用 color 字段，改用 formatter 内嵌样式
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    // 获取显示值
                     let displayValue: number;
                     if (hasLabelField && labelData[idx]) {
                       displayValue = labelData[idx][2];
@@ -477,7 +453,6 @@ export default function App() {
                       displayValue = bgData[idx][2];
                     }
 
-                    // 计算百分比或原始值字符串
                     let text: string;
                     if (config.valueFormat === 'percent') {
                       const total = hasLabelField
@@ -492,14 +467,13 @@ export default function App() {
                       text = displayValue.toFixed(2);
                     }
 
-                    // 根据阈值决定颜色（仅当存在显示字段且阈值有效时）
-                    let color = '#1F2329'; // 默认深色
+                    let color = '#1F2329';
                     if (hasLabelField) {
                       const thresholdValue = labelMax * config.threshold;
                       color = displayValue >= thresholdValue ? '#2ecc71' : '#e74c3c';
                     }
 
-                    // 返回带颜色的 HTML
+                    console.log('hasLabelField:', hasLabelField, 'displayValue:', displayValue, 'labelMax:', labelMax, 'threshold:', config.threshold, 'color:', color);
                     return `<span style="color: ${color};">${text}</span>`;
                   }
                 : undefined,
