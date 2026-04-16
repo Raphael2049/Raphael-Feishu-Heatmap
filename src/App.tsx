@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import * as echarts from 'echarts';
-import { Select, Button, Spin, Switch } from '@douyinfe/semi-ui';
+import { Select, Button, Spin, Switch, InputNumber } from '@douyinfe/semi-ui';
 import { dashboard, bitable, DashboardState } from '@lark-base-open/js-sdk';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from './hooks';
@@ -21,7 +21,7 @@ interface IHeatmapConfig {
   // 显示数值字段（可选）
   displayValueFieldId?: string;
   displayAggregate?: 'count' | 'sum' | 'average';
-  displayColorRange: [string, string];
+  threshold: number; // 新增：阈值，用于标签颜色判定
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -37,7 +37,7 @@ const defaultConfig: IHeatmapConfig = {
   valueFormat: 'raw',
   displayValueFieldId: undefined,
   displayAggregate: 'sum',
-  displayColorRange: ['#ffffff', '#d73027'],
+  threshold: 0.8,
 };
 
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
@@ -247,19 +247,15 @@ function ConfigPanel({
                     style={{ width: '100%' }}
                   />
                 </Item>
-                <Item label="显示颜色范围">
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="color"
-                      value={config.displayColorRange[0]}
-                      onChange={(e) => setConfig({ ...config, displayColorRange: [e.target.value, config.displayColorRange[1]] })}
-                    />
-                    <input
-                      type="color"
-                      value={config.displayColorRange[1]}
-                      onChange={(e) => setConfig({ ...config, displayColorRange: [config.displayColorRange[0], e.target.value] })}
-                    />
-                  </div>
+                <Item label="阈值 (0-1)">
+                  <InputNumber
+                    value={config.threshold}
+                    onChange={(v) => setConfig({ ...config, threshold: v as number })}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    style={{ width: '100%' }}
+                  />
                 </Item>
               </>
             )}
@@ -416,29 +412,16 @@ export default function App() {
 
       const bgMin = Math.min(...bgValues, 0);
       const bgMax = Math.max(...bgValues, 1);
-      const labelMin = labelValues.length > 0 ? Math.min(...labelValues, 0) : 0;
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
       const totalSum = labelValues.reduce((a, b) => a + b, 0);
 
-      // 构建 visualMap
-      const visualMap: any[] = [
-        {
-          min: bgMin,
-          max: bgMax,
-          calculable: true,
-          inRange: { color: config.colorRange },
-          seriesIndex: 0,
-        },
-      ];
-
-      if (config.showLabel && hasLabelField) {
-        visualMap.push({
-          min: labelMin,
-          max: labelMax,
-          calculable: true,
-          inRange: { color: config.displayColorRange },
-          seriesIndex: 0,
-          target: 'label',
+      // 计算每个标签的颜色（基于阈值）
+      const labelColors: string[] = [];
+      if (hasLabelField) {
+        const thresholdValue = labelMax * config.threshold;
+        labelData.forEach(d => {
+          const value = d[2];
+          labelColors.push(value >= thresholdValue ? '#2ecc71' : '#e74c3c');
         });
       }
 
@@ -482,7 +465,11 @@ export default function App() {
             label: {
               show: config.showLabel,
               fontSize: config.labelFontSize,
-              color: '#1F2329', // 固定深色文字
+              color: ((params: any) => {
+                if (!hasLabelField) return '#1F2329';
+                const idx = params.dataIndex;
+                return labelColors[idx] || '#1F2329';
+              }) as any, // 强制绕过类型检查
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
