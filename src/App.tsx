@@ -486,6 +486,7 @@ export default function App() {
           axisLabel: {
             fontSize: config.axisLabelFontSize,
           },
+          inverse: true,
         },
         visualMap: {
           min: bgMin,
