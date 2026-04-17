@@ -442,16 +442,24 @@ export default function App() {
           if (config.aggregate === 'average') {
             rawValue = rawValue / (cntMap[x]?.[y] || 1);
           }
-          let visualValue = rawValue;
+
+          let visualValue: number | null = rawValue;
           if (config.colorMode === 'xProportion') {
             const rowSum = rowSums[y] || 1;
             visualValue = rawValue / rowSum;
           }
 
-          const idx = bgData.length;
-          bgData.push([xi, yi, visualValue]);
-          bgValues.push(visualValue);
+          // 如果原始聚合值为0，则视觉值设为null（不参与visualMap映射）
+          const isZero = Math.abs(rawValue) < 1e-9;
+          const finalVisual = isZero ? null : visualValue;
 
+          const idx = bgData.length;
+          bgData.push([xi, yi, finalVisual as any]); // 类型断言，实际为 number | null
+          if (!isZero) {
+            bgValues.push(visualValue as number);
+          }
+
+          // labelData 保持不变
           let labelVal = 0;
           if (hasLabelField) {
             labelVal = labelAggMap[x]?.[y] || 0;
@@ -467,7 +475,7 @@ export default function App() {
             xName: x,
             yName: y,
             rawBgValue: rawValue,
-            visualBgValue: visualValue,
+            visualBgValue: visualValue as number,
             labelValue: labelVal,
           };
         });
@@ -583,14 +591,7 @@ export default function App() {
               itemStyle: {
                 borderWidth: 1,
                 borderColor: 'rgba(255,255,255,0.3)',
-                color: ((params: any) => {
-                  const value = params.data[2];
-                  if (Math.abs(value) < 1e-9) {
-                    return '#ffffff';
-                  }
-                  // 返回 undefined 实际由 visualMap 控制，但 TS 不允许，用 as any 绕过
-                  return undefined as any;
-                }) as any,
+                color: '#ffffff', // 当值为null时使用此颜色
               },
           },
         ],
