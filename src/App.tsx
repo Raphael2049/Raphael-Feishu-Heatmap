@@ -29,7 +29,7 @@ const defaultConfig: IHeatmapConfig = {
   yFieldId: '',
   valueFieldId: '',
   aggregate: 'count',
-  colorRange: ['#ffffff', '#313695'],
+  colorRange: ['#d6d9ef', '#313695'],
   axisLabelFontSize: 13,
   showLabel: false,
   labelFontSize: 10,
@@ -580,10 +580,18 @@ export default function App() {
                 redStyle: { color: '#e74c3c' },
               },
             },
-            itemStyle: {
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.3)',
-            },
+              itemStyle: {
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: ((params: any) => {
+                  const value = params.data[2];
+                  if (Math.abs(value) < 1e-9) {
+                    return '#ffffff';
+                  }
+                  // 返回 undefined 实际由 visualMap 控制，但 TS 不允许，用 as any 绕过
+                  return undefined as any;
+                }) as any,
+              },
           },
         ],
         backgroundColor: '#B2C4D0',
