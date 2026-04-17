@@ -541,50 +541,55 @@ export default function App() {
           calculable: true,
           inRange: { color: config.colorRange },
         },
-        series: [
-          {
-            type: 'heatmap',
-            data: bgData,
-            label: {
-              show: config.showLabel,
-              fontSize: config.labelFontSize,
-              formatter: config.showLabel
-                ? (params: any) => {
-                    const idx = params.dataIndex;
-                    const bgVal = bgData[idx][2]; // 背景色聚合值
-                    if (Math.abs(bgVal) < 1e-9) return ''; // 背景值为0时隐藏标签
+          series: [
+            {
+              type: 'heatmap',
+              data: bgData,
+              label: {
+                show: config.showLabel,
+                fontSize: config.labelFontSize,
+                formatter: config.showLabel
+                  ? (params: any) => {
+                      const idx = params.dataIndex;
+                      const bgVal = bgData[idx][2];
+                      if (Math.abs(bgVal) < 1e-9) return '';
 
-                    // 显示数值：优先使用 labelData，否则用 bgData
-                    const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
-                    let displayValue: string;
-                    if (config.valueFormat === 'percent') {
-                      displayValue = (labelVal * 100).toFixed(2) + '%';
-                    } else {
-                      displayValue = labelVal.toFixed(2);
-                    }
+                      const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
+                      let displayValue: string;
+                      if (config.valueFormat === 'percent') {
+                        displayValue = (labelVal * 100).toFixed(2) + '%';
+                      } else {
+                        displayValue = labelVal.toFixed(2);
+                      }
 
-                    // 颜色判定仍基于 labelData 的实际值（如果未配置显示字段则用背景值）
-                    const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
-                    let styleName = 'defaultStyle';
-                    if (hasLabelField) {
-                      const thresholdValue = labelMax * config.threshold;
-                      styleName = colorSourceVal >= thresholdValue ? 'greenStyle' : 'redStyle';
+                      const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
+                      let styleName = 'defaultStyle';
+                      if (hasLabelField) {
+                        const thresholdValue = labelMax * config.threshold;
+                        styleName = colorSourceVal >= thresholdValue ? 'greenStyle' : 'redStyle';
+                      }
+                      return `{${styleName}|${displayValue}}`;
                     }
-                    return `{${styleName}|${displayValue}}`;
+                  : undefined,
+                rich: {
+                  defaultStyle: { color: '#1F2329' },
+                  greenStyle: { color: '#2ecc71' },
+                  redStyle: { color: '#e74c3c' },
+                },
+              },
+              itemStyle: {
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: ((params: any) => {
+                  const bgValue = bgData[params.dataIndex][2];
+                  if (Math.abs(bgValue) < 1e-9) {
+                    return '#ffffff';
                   }
-                : undefined,
-              rich: {
-                defaultStyle: { color: '#1F2329' },
-                greenStyle: { color: '#2ecc71' },
-                redStyle: { color: '#e74c3c' },
+                  return undefined as any;
+                }) as any,
               },
             },
-            itemStyle: {
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.3)',
-            },
-          },
-        ],
+          ],
         backgroundColor: '#B2C4D0',
       });
     } catch (e) {
