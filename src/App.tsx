@@ -551,20 +551,24 @@ export default function App() {
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    const value = hasLabelField && labelData[idx] ? labelData[idx][2] : bgData[idx][2];
-                    if (Math.abs(value) < 1e-9) return '';
+                    const bgVal = bgData[idx][2]; // 背景色聚合值
+                    if (Math.abs(bgVal) < 1e-9) return ''; // 背景值为0时隐藏标签
+
+                    // 显示数值：优先使用 labelData，否则用 bgData
+                    const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let displayValue: string;
                     if (config.valueFormat === 'percent') {
-                      displayValue = (value * 100).toFixed(2) + '%';
+                      displayValue = (labelVal * 100).toFixed(2) + '%';
                     } else {
-                      displayValue = value.toFixed(2);
+                      displayValue = labelVal.toFixed(2);
                     }
 
+                    // 颜色判定仍基于 labelData 的实际值（如果未配置显示字段则用背景值）
+                    const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let styleName = 'defaultStyle';
                     if (hasLabelField) {
                       const thresholdValue = labelMax * config.threshold;
-                      const currentLabelValue = labelData[idx] ? labelData[idx][2] : 0;
-                      styleName = currentLabelValue >= thresholdValue ? 'greenStyle' : 'redStyle';
+                      styleName = colorSourceVal >= thresholdValue ? 'greenStyle' : 'redStyle';
                     }
                     return `{${styleName}|${displayValue}}`;
                   }
