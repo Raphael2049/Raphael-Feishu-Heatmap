@@ -71,7 +71,7 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
     if (!chartInstance.current) return;
     const observer = new MutationObserver(() => {
       const theme = document.body.getAttribute('theme-mode');
-      const bgColor = theme === 'dark' ? '#000000' : '#ffffff';
+      const bgColor = theme === 'dark' ? '#1A1A1A' : '#ffffff';
       chartInstance.current?.setOption({ backgroundColor: bgColor });
     });
     observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
@@ -501,7 +501,7 @@ export default function App() {
       const bgMax = config.colorMode === 'xProportion' ? 1 : Math.max(...bgValues, 1);
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
       const theme = document.body.getAttribute('theme-mode');
-      const chartBgColor = theme === 'dark' ? '#000000' : '#ffffff';
+      const chartBgColor = theme === 'dark' ? '#1A1A1A' : '#ffffff';
 
       setChartOptions({
         tooltip: {
