@@ -447,6 +447,7 @@ export default function App() {
             const rowSum = rowSums[y] || 1;
             visualValue = rawValue / rowSum;
           }
+
           const idx = bgData.length;
           bgData.push([xi, yi, visualValue]);
           bgValues.push(visualValue);
