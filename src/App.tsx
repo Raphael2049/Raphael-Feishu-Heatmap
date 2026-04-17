@@ -68,6 +68,17 @@ function HeatmapChart({ options, height }: { options: echarts.EChartsOption; hei
   const chartInstance = useRef<echarts.ECharts>();
 
   useEffect(() => {
+    if (!chartInstance.current) return;
+    const observer = new MutationObserver(() => {
+      const theme = document.body.getAttribute('theme-mode');
+      const bgColor = theme === 'dark' ? '#000000' : '#ffffff';
+      chartInstance.current?.setOption({ backgroundColor: bgColor });
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['theme-mode'] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!chartRef.current) return;
     chartInstance.current = echarts.init(chartRef.current);
     const resizeObserver = new ResizeObserver(() => chartInstance.current?.resize());
@@ -489,6 +500,8 @@ export default function App() {
       const bgMin = config.colorMode === 'xProportion' ? 0 : Math.min(...bgValues, 0);
       const bgMax = config.colorMode === 'xProportion' ? 1 : Math.max(...bgValues, 1);
       const labelMax = labelValues.length > 0 ? Math.max(...labelValues, 1) : 1;
+      const theme = document.body.getAttribute('theme-mode');
+      const chartBgColor = theme === 'dark' ? '#000000' : '#ffffff';
 
       setChartOptions({
         tooltip: {
@@ -595,7 +608,7 @@ export default function App() {
               },
           },
         ],
-        backgroundColor: '#B2C4D0',
+        backgroundColor: chartBgColor,
       });
     } catch (e) {
       console.error(e);
