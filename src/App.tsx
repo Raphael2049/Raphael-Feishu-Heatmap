@@ -597,7 +597,7 @@ export default function App() {
                 : undefined,
               rich: {
                 defaultStyle: { color: '#1F2329' },
-                greenStyle: { color: '#2ecc71' },
+                greenStyle: { color: '#159a4c' },
                 redStyle: { color: '#e74c3c' },
               },
             },
