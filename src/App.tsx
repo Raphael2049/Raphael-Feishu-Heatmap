@@ -447,9 +447,6 @@ export default function App() {
             const rowSum = rowSums[y] || 1;
             visualValue = rawValue / rowSum;
           }
-          // 如果视觉值为0，则跳过该单元格（不显示）
-          if (Math.abs(visualValue) < 1e-9) return;
-
           const idx = bgData.length;
           bgData.push([xi, yi, visualValue]);
           bgValues.push(visualValue);
