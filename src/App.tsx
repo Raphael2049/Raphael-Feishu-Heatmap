@@ -541,55 +541,57 @@ export default function App() {
           calculable: true,
           inRange: { color: config.colorRange },
         },
-          series: [
-            {
-              type: 'heatmap',
-              data: bgData,
-              label: {
-                show: config.showLabel,
-                fontSize: config.labelFontSize,
-                formatter: config.showLabel
-                  ? (params: any) => {
-                      const idx = params.dataIndex;
-                      const bgVal = bgData[idx][2];
-                      if (Math.abs(bgVal) < 1e-9) return '';
+        series: [
+          {
+            type: 'heatmap',
+            data: bgData,
+            label: {
+              show: config.showLabel,
+              fontSize: config.labelFontSize,
+              formatter: config.showLabel
+                ? (params: any) => {
+                    const idx = params.dataIndex;
+                    const bgVal = bgData[idx][2]; // 背景视觉值（背景值为0时视觉值也为0）
+                    if (Math.abs(bgVal) < 1e-9) return '';
 
-                      const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
-                      let displayValue: string;
-                      if (config.valueFormat === 'percent') {
-                        displayValue = (labelVal * 100).toFixed(2) + '%';
-                      } else {
-                        displayValue = labelVal.toFixed(2);
-                      }
-
-                      const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
-                      let styleName = 'defaultStyle';
-                      if (hasLabelField) {
-                        const thresholdValue = labelMax * config.threshold;
-                        styleName = colorSourceVal >= thresholdValue ? 'greenStyle' : 'redStyle';
-                      }
-                      return `{${styleName}|${displayValue}}`;
+                    const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
+                    let displayValue: string;
+                    if (config.valueFormat === 'percent') {
+                      displayValue = (labelVal * 100).toFixed(2) + '%';
+                    } else {
+                      displayValue = labelVal.toFixed(2);
                     }
-                  : undefined,
-                rich: {
-                  defaultStyle: { color: '#1F2329' },
-                  greenStyle: { color: '#2ecc71' },
-                  redStyle: { color: '#e74c3c' },
-                },
-              },
-              itemStyle: {
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: ((params: any) => {
-                  const bgValue = bgData[params.dataIndex][2];
-                  if (Math.abs(bgValue) < 1e-9) {
-                    return '#ffffff';
+
+                    const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
+                    let styleName = 'defaultStyle';
+                    if (hasLabelField) {
+                      const thresholdValue = labelMax * config.threshold;
+                      styleName = colorSourceVal >= thresholdValue ? 'greenStyle' : 'redStyle';
+                    }
+                    return `{${styleName}|${displayValue}}`;
                   }
-                  return undefined as any;
-                }) as any,
+                : undefined,
+              rich: {
+                defaultStyle: { color: '#1F2329' },
+                greenStyle: { color: '#2ecc71' },
+                redStyle: { color: '#e74c3c' },
               },
             },
-          ],
+            itemStyle: {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.3)',
+              color: (params: any) => {
+                // 热力图 data 是 [xIndex, yIndex, value]
+                const visualValue = params.value?.[2];
+                if (visualValue === 0) {
+                  return '#ffffff';
+                }
+                // 非零时使用 visualMap 计算的颜色，通过 params.color 获取
+                return params.color;
+              },
+            },
+          },
+        ],
         backgroundColor: '#B2C4D0',
       });
     } catch (e) {
