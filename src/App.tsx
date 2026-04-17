@@ -551,9 +551,10 @@ export default function App() {
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    const bgVal = bgData[idx][2]; // 背景视觉值（背景值为0时视觉值也为0）
-                    if (Math.abs(bgVal) < 1e-9) return '';
+                    const bgVal = bgData[idx][2]; // 背景色聚合值
+                    if (Math.abs(bgVal) < 1e-9) return ''; // 背景值为0时隐藏标签
 
+                    // 显示数值：优先使用 labelData，否则用 bgData
                     const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let displayValue: string;
                     if (config.valueFormat === 'percent') {
@@ -562,6 +563,7 @@ export default function App() {
                       displayValue = labelVal.toFixed(2);
                     }
 
+                    // 颜色判定仍基于 labelData 的实际值（如果未配置显示字段则用背景值）
                     const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let styleName = 'defaultStyle';
                     if (hasLabelField) {
@@ -577,19 +579,16 @@ export default function App() {
                 redStyle: { color: '#e74c3c' },
               },
             },
-            itemStyle: {
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.3)',
-              color: (params: any) => {
-                // 热力图 data 是 [xIndex, yIndex, value]
-                const visualValue = params.value?.[2];
-                if (visualValue === 0) {
-                  return '#ffffff';
-                }
-                // 非零时使用 visualMap 计算的颜色，通过 params.color 获取
-                return params.color;
-              },
-            },
+            itemStyle: ((params: any) => {
+              const dataIndex = params.dataIndex;
+              const xi = Math.floor(dataIndex / yCats.length);
+              const yi = dataIndex % yCats.length;
+              const info = cellInfo[xi]?.[yi];
+              if (info && Math.abs(info.rawBgValue) < 1e-9) {
+                return { color: '#ffffff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' };
+              }
+              return { borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' };
+            }) as any,
           },
         ],
         backgroundColor: '#B2C4D0',
