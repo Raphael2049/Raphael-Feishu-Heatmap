@@ -424,7 +424,7 @@ export default function App() {
         });
       }
 
-      const bgData: [number, number, number][] = [];
+      const bgData: any[] = []; // 存储 [xi, yi, visualValue, cellIndex]
       const labelData: [number, number, number][] = [];
       const bgValues: number[] = [];
       const labelValues: number[] = [];
@@ -447,9 +447,6 @@ export default function App() {
             const rowSum = rowSums[y] || 1;
             visualValue = rawValue / rowSum;
           }
-          const idx = bgData.length;
-          bgData.push([xi, yi, visualValue]);
-          bgValues.push(visualValue);
 
           let labelVal = 0;
           if (hasLabelField) {
@@ -469,6 +466,13 @@ export default function App() {
             visualBgValue: visualValue,
             labelValue: labelVal,
           };
+
+          // 只有背景聚合值不为0时才添加到渲染数据
+          if (Math.abs(rawValue) >= 1e-9) {
+            const cellIndex = xi * yCats.length + yi;
+            bgData.push([xi, yi, visualValue, cellIndex]);
+            bgValues.push(visualValue);
+          }
         });
       });
 
@@ -485,9 +489,10 @@ export default function App() {
         tooltip: {
           trigger: 'item',
           formatter: (params: any) => {
-            const dataIndex = params.dataIndex;
-            const xi = Math.floor(dataIndex / yCats.length);
-            const yi = dataIndex % yCats.length;
+            const cellIndex = params.data?.[3]; // 第四个元素是我们存储的 cellIndex
+            if (cellIndex === undefined) return '';
+            const xi = Math.floor(cellIndex / yCats.length);
+            const yi = cellIndex % yCats.length;
             const info = cellInfo[xi]?.[yi];
             if (!info) return '';
 
@@ -579,16 +584,10 @@ export default function App() {
                 redStyle: { color: '#e74c3c' },
               },
             },
-            itemStyle: ((params: any) => {
-              const dataIndex = params.dataIndex;
-              const xi = Math.floor(dataIndex / yCats.length);
-              const yi = dataIndex % yCats.length;
-              const info = cellInfo[xi]?.[yi];
-              if (info && Math.abs(info.rawBgValue) < 1e-9) {
-                return { color: '#ffffff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' };
-              }
-              return { borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' };
-            }) as any,
+            itemStyle: {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.3)',
+            },
           },
         ],
         backgroundColor: '#B2C4D0',
