@@ -21,6 +21,11 @@ interface IHeatmapConfig {
   displayAggregate?: 'count' | 'sum' | 'average';
   threshold: number;
   colorMode: 'absolute' | 'xProportion';
+  // 新增过滤配置
+  filterYEnabled: boolean;
+  filterYThreshold: number;
+  filterXEnabled: boolean;
+  filterXThreshold: number;
 }
 
 const defaultConfig: IHeatmapConfig = {
@@ -38,6 +43,10 @@ const defaultConfig: IHeatmapConfig = {
   displayAggregate: 'sum',
   threshold: 0.8,
   colorMode: 'absolute',
+  filterYEnabled: false,
+  filterYThreshold: 0,
+  filterXEnabled: false,
+  filterXThreshold: 0,
 };
 
 const Item: React.FC<{ label?: string; children?: React.ReactNode }> = ({ label, children }) => {
@@ -132,12 +141,9 @@ function ConfigPanel({
     value: size,
   }));
 
-  // 放宽过滤条件：排除明显非数字的字段类型（文本、附件、复选框等），公式字段通常可返回数字
   const numberFields = fieldList.filter((f: any) => {
-    // 排除明确不是数字的类型（可根据实际情况调整）
     const nonNumericTypes = [1, 3, 4, 5, 7, 13, 15, 17, 18, 21, 22, 23, 25];
     const actualType = f.proxyType ?? f.type;
-    // 输出字段信息以便调试（可在控制台查看）
     console.log(`字段: ${f.name}, type: ${f.type}, proxyType: ${f.proxyType}`);
     return !nonNumericTypes.includes(actualType);
   });
@@ -145,6 +151,7 @@ function ConfigPanel({
   return (
     <div className="config-panel">
       <div className="form">
+        {/* 原有配置项保持不变 */}
         <Item label="选择表格">
           <Select
             value={config.tableId}
@@ -215,6 +222,46 @@ function ConfigPanel({
           />
         </Item>
 
+        {/* 新增：过滤配置 */}
+        <Item label="过滤行 (Y轴)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Switch checked={config.filterYEnabled} onChange={(v) => setConfig({ ...config, filterYEnabled: v })} />
+            <span>启用</span>
+          </div>
+          {config.filterYEnabled && (
+            <div style={{ marginTop: 8 }}>
+              <span>阈值（仅显示总值大于此值的行）:</span>
+              <InputNumber
+                value={config.filterYThreshold}
+                onChange={(v) => setConfig({ ...config, filterYThreshold: v as number })}
+                min={0}
+                step={1}
+                style={{ width: '100%', marginTop: 4 }}
+              />
+            </div>
+          )}
+        </Item>
+
+        <Item label="过滤列 (X轴)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Switch checked={config.filterXEnabled} onChange={(v) => setConfig({ ...config, filterXEnabled: v })} />
+            <span>启用</span>
+          </div>
+          {config.filterXEnabled && (
+            <div style={{ marginTop: 8 }}>
+              <span>阈值（仅显示总值大于此值的列）:</span>
+              <InputNumber
+                value={config.filterXThreshold}
+                onChange={(v) => setConfig({ ...config, filterXThreshold: v as number })}
+                min={0}
+                step={1}
+                style={{ width: '100%', marginTop: 4 }}
+              />
+            </div>
+          )}
+        </Item>
+
+        {/* 原有标签相关配置 */}
         <Item label="显示数值标签">
           <Switch checked={config.showLabel} onChange={(v) => setConfig({ ...config, showLabel: v })} />
         </Item>
@@ -387,50 +434,95 @@ export default function App() {
         }
       }
 
-      // 排序权重计算
+      // ---- 新增：过滤 Y 轴类别 ----
+      const yTotalMap: Record<string, number> = {};
+      for (const x in aggMap) {
+        for (const y in aggMap[x]) {
+          const val = aggMap[x][y];
+          const finalVal = config.aggregate === 'average'
+            ? val / (cntMap[x][y] || 1)
+            : val;
+          yTotalMap[y] = (yTotalMap[y] || 0) + finalVal;
+        }
+      }
+      let validYCats = Object.keys(yTotalMap);
+      if (config.filterYEnabled) {
+        validYCats = validYCats.filter(y => yTotalMap[y] > config.filterYThreshold);
+      }
+
+      // ---- 新增：过滤 X 轴类别 ----
+      const xTotalMap: Record<string, number> = {};
+      for (const x in aggMap) {
+        for (const y in aggMap[x]) {
+          // 只考虑未被过滤掉的 Y 类别
+          if (!validYCats.includes(y)) continue;
+          const val = aggMap[x][y];
+          const finalVal = config.aggregate === 'average'
+            ? val / (cntMap[x][y] || 1)
+            : val;
+          xTotalMap[x] = (xTotalMap[x] || 0) + finalVal;
+        }
+      }
+      let validXCats = Object.keys(xTotalMap);
+      if (config.filterXEnabled) {
+        validXCats = validXCats.filter(x => xTotalMap[x] > config.filterXThreshold);
+      }
+
+      // 如果没有符合条件的类别，显示空数据提示
+      if (validXCats.length === 0 || validYCats.length === 0) {
+        setChartOptions({
+          title: {
+            text: '当前过滤条件下无数据',
+            left: 'center',
+            top: 'center',
+          },
+          backgroundColor: document.body.getAttribute('theme-mode') === 'dark' ? '#1A1A1A' : '#ffffff',
+        });
+        setChartHeight(400);
+        return;
+      }
+
+      // 基于过滤后的类别构建后续数据（排序、渲染）
+      const filteredAggMap: Record<string, Record<string, number>> = {};
+      const filteredCntMap: Record<string, Record<string, number>> = {};
+      validXCats.forEach(x => {
+        filteredAggMap[x] = {};
+        filteredCntMap[x] = {};
+        validYCats.forEach(y => {
+          filteredAggMap[x][y] = aggMap[x]?.[y] || 0;
+          filteredCntMap[x][y] = cntMap[x]?.[y] || 0;
+        });
+      });
+
+      // 计算排序权重（沿用原有逻辑，但使用过滤后的数据）
       const xAggValues: Record<string, number> = {};
       const yAggValues: Record<string, number> = {};
-
-      for (const x in aggMap) {
+      validXCats.forEach(x => {
         let xTotal = 0;
-        for (const y in aggMap[x]) {
-          const val = aggMap[x][y];
-          xTotal += config.aggregate === 'average' ? val * (cntMap[x][y] || 1) : val;
-        }
-        xAggValues[x] = config.aggregate === 'average' ? xTotal / (Object.keys(aggMap[x]).length || 1) : xTotal;
-      }
+        validYCats.forEach(y => {
+          const val = filteredAggMap[x][y];
+          const cnt = filteredCntMap[x][y] || 1;
+          xTotal += config.aggregate === 'average' ? val : val;
+        });
+        xAggValues[x] = config.aggregate === 'average' ? xTotal / (validYCats.length || 1) : xTotal;
+      });
+      validYCats.forEach(y => {
+        let yTotal = 0;
+        validXCats.forEach(x => {
+          yTotal += filteredAggMap[x][y];
+        });
+        yAggValues[y] = config.aggregate === 'average' ? yTotal / (validXCats.length || 1) : yTotal;
+      });
 
-      for (const x in aggMap) {
-        for (const y in aggMap[x]) {
-          const val = aggMap[x][y];
-          const contribution = config.aggregate === 'average' ? val : val;
-          if (!yAggValues[y]) yAggValues[y] = 0;
-          yAggValues[y] += contribution;
-        }
-      }
-      if (config.aggregate === 'average') {
-        const yOccurrences: Record<string, number> = {};
-        for (const x in aggMap) {
-          for (const y in aggMap[x]) {
-            yOccurrences[y] = (yOccurrences[y] || 0) + 1;
-          }
-        }
-        for (const y in yAggValues) {
-          yAggValues[y] = yAggValues[y] / yOccurrences[y];
-        }
-      }
+      const xCats = validXCats.sort((a, b) => xAggValues[b] - xAggValues[a]);
+      const yCats = validYCats.sort((a, b) => (yAggValues[a] || 0) - (yAggValues[b] || 0));
 
-      const xCats = Object.keys(aggMap).sort((a, b) => xAggValues[b] - xAggValues[a]);
-      const ySet = new Set<string>();
-      xCats.forEach(x => { Object.keys(aggMap[x] || {}).forEach(y => ySet.add(y)); });
-      const yCats = Array.from(ySet).sort((a, b) => (yAggValues[a] || 0) - (yAggValues[b] || 0));
-
-      // 计算每行（Y分类）总和，用于比例模式
+      // 后续构建图表数据的逻辑基本不变，只需将原 aggMap/cntMap 替换为 filtered 版本，并更新维度数组为 xCats/yCats
       const rowSums: Record<string, number> = {};
       if (config.colorMode === 'xProportion') {
         yCats.forEach(y => {
           let sum = 0;
-          xCats.forEach(x => { sum += aggMap[x]?.[y] || 0; });
+          xCats.forEach(x => { sum += filteredAggMap[x]?.[y] || 0; });
           rowSums[y] = sum;
         });
       }
@@ -449,9 +541,9 @@ export default function App() {
 
       xCats.forEach((x, xi) => {
         yCats.forEach((y, yi) => {
-          let rawValue = aggMap[x]?.[y] || 0;
+          let rawValue = filteredAggMap[x]?.[y] || 0;
           if (config.aggregate === 'average') {
-            rawValue = rawValue / (cntMap[x]?.[y] || 1);
+            rawValue = rawValue / (filteredCntMap[x]?.[y] || 1);
           }
 
           let visualValue: number | null = rawValue;
@@ -460,17 +552,15 @@ export default function App() {
             visualValue = rawValue / rowSum;
           }
 
-          // 如果原始聚合值为0，则视觉值设为null（不参与visualMap映射）
           const isZero = Math.abs(rawValue) < 1e-9;
           const finalVisual = isZero ? null : visualValue;
 
           const idx = bgData.length;
-          bgData.push([xi, yi, finalVisual as any]); // 类型断言，实际为 number | null
+          bgData.push([xi, yi, finalVisual as any]);
           if (!isZero) {
             bgValues.push(visualValue as number);
           }
 
-          // labelData 保持不变
           let labelVal = 0;
           if (hasLabelField) {
             labelVal = labelAggMap[x]?.[y] || 0;
@@ -573,10 +663,9 @@ export default function App() {
               formatter: config.showLabel
                 ? (params: any) => {
                     const idx = params.dataIndex;
-                    const bgVal = bgData[idx][2]; // 背景色聚合值
-                    if (Math.abs(bgVal) < 1e-9) return ''; // 背景值为0时隐藏标签
+                    const bgVal = bgData[idx][2];
+                    if (Math.abs(bgVal) < 1e-9) return '';
 
-                    // 显示数值：优先使用 labelData，否则用 bgData
                     const labelVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let displayValue: string;
                     if (config.valueFormat === 'percent') {
@@ -585,7 +674,6 @@ export default function App() {
                       displayValue = labelVal.toFixed(2);
                     }
 
-                    // 颜色判定仍基于 labelData 的实际值（如果未配置显示字段则用背景值）
                     const colorSourceVal = hasLabelField && labelData[idx] ? labelData[idx][2] : bgVal;
                     let styleName = 'defaultStyle';
                     if (hasLabelField) {
@@ -601,11 +689,11 @@ export default function App() {
                 redStyle: { color: '#e74c3c' },
               },
             },
-              itemStyle: {
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: '#ffffff', // 当值为null时使用此颜色
-              },
+            itemStyle: {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.3)',
+              color: '#ffffff',
+            },
           },
         ],
         backgroundColor: chartBgColor,
